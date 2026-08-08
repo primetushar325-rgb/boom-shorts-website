@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Order Now — Mihad Boom Shorts</title>
+<link rel="preload" as="image" href="logo.jpg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Hind+Siliguri:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <span class="site-name">MIHAD BOOM SHORTS</span>
+    <nav><ul class="nav-links" id="navLinks"><li><a href="index.html">Home</a></li><li><a href="demo.html">Demo</a></li></ul></nav>
+    <button class="menu-btn" onclick="document.getElementById('navLinks').classList.toggle('mobile-open')">☰</button>
+  </div>
+</header>
+
+<section style="max-width:540px;margin:40px auto;padding:0 20px;">
+  <div class="form-box">
+    <h2 class="form-title">Complete Your Order</h2>
+    <p class="form-sub">Fill in & confirm via WhatsApp ✅</p>
+
+    <div class="order-summary"><div class="order-name" id="pkgN">Loading...</div><div class="order-price" id="pkgP">৳0</div></div>
+
+    <div class="pay-tabs">
+      <button type="button" class="pay-tab active" onclick="selPay(this,'bKash','01609371023')">bKash</button>
+      <button type="button" class="pay-tab" onclick="selPay(this,'Nagad','01609371023')">Nagad</button>
+      <button type="button" class="pay-tab" onclick="selPay(this,'Rocket','01609371023')">Rocket</button>
+    </div>
+
+    <div class="pay-box">
+      <div class="pay-label">Send Money To</div>
+      <div class="pay-number" id="payNum">01609371023</div>
+      <div class="pay-note">⚠️ TrxID সঠিকভাবে দিন।</div>
+    </div>
+
+    <form id="oForm" onsubmit="submitO(e)">
+      <div class="f-group"><label class="f-label">Name *</label><input type="text" class="f-input" id="fName" placeholder="Your name" required/></div>
+      <div class="f-group"><label class="f-label">WhatsApp *</label><input type="tel" class="f-input" id="fWa" placeholder="01XXXXXXXXX" required/></div>
+      <div class="f-group"><label class="f-label">Transaction ID *</label><input type="text" class="f-input" id="fTrx" placeholder="TrxID from app" required/></div>
+      <div class="f-group"><label class="f-label">Note (optional)</label><textarea class="f-area" id="fMsg" rows="2" placeholder="Any special request..."></textarea></div>
+      <button type="submit" class="f-submit">✅ Confirm Payment → WhatsApp</button>
+      <p style="font-size:11px;color:var(--muted,#94a3b8);margin-top:12px;text-align:center;">Opens WhatsApp automatically with order details 📲</p>
+    </form>
+  </div>
+</section>
+
+<footer class="footer">
+  <img src="logo.jpg" alt="Logo" class="ft-logo" loading="lazy" width="52" height="52"/><div class="ft-brand">MIHAD BOOM SHORTS</div>
+  <p class="ft-copy">© 2025 Mihad Boom Shorts. All rights reserved.</p>
+</footer>
+<div class="float-bar"><a href="https://wa.me/8801609371023"target="_blank"class="fb fb-wa">🟢</a></div>
+
+<script>
+  const p = new URLSearchParams(location.search);
+  document.getElementById('pkgN').textContent = (p.get('package') || 'Custom') + " Package";
+  document.getElementById('pkgP').textContent = '৳' + (p.get('price') || '500');
+
+  function selPay(btn, m, num) {
+    document.querySelectorAll('.pay-tab').forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("payNum").textContent = num;
+  }
+
+  function submitO(e) {
+    e.preventDefault();
+    const t = `🛒 *New Order — MIHAD BOOM SHORTS*\n\n👤 ${document.getElementById("fName").value}\n📱 ${document.getElementById("fWa").value}\n📦 ${p.get("package") || "Package"}\n💰 ৳${p.get("price") || "500"}\n💳 bKash/Nagad/Rocket\n🧾 Trx: ${document.getElementById("fTrx").value}${document.getElementById("fMsg").value ? "\n📝 " + document.getElementById("fMsg").value : ""}`;
+    window.open("https://wa.me/8801609371023?text=" + encodeURIComponent(t), "_blank");
+    document.querySelector(".form-box").innerHTML = `<div style="text-align:center;padding:28px 0;"><div style="font-size:55px;margin-bottom:14px;">✅</div><h2 style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px;">Order Confirmed!</h2><p style="color:var(--muted,#94a3b8);font-size:13px;line-height:1.7;">Thank you ${document.getElementById("fName").value}! আপনার order WhatsApp-এ গিয়েছে.</p><a href="index.html" class="cta-big" style="display:inline-block;text-decoration:none;">← Back to Home</a></div>`;
+  }
+</script>
+</body>
+</html>

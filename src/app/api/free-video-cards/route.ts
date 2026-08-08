@@ -1,0 +1,34 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { freeVideoCards } from "@/db/schema";
+import { asc } from "drizzle-orm";
+import { isAdminAuthed } from "@/lib/requireAdmin";
+
+export async function GET() {
+  const rows = await db
+    .select()
+    .from(freeVideoCards)
+    .orderBy(asc(freeVideoCards.sortOrder), asc(freeVideoCards.id));
+  return NextResponse.json({ cards: rows });
+}
+
+export async function POST(req: NextRequest) {
+  const admin = await isAdminAuthed();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  if (!body.title) return NextResponse.json({ error: "title required" }, { status: 400 });
+
+  const [created] = await db
+    .insert(freeVideoCards)
+    .values({
+      title: body.title,
+      thumbnailUrl: body.thumbnailUrl || "",
+      link: body.link || "",
+      visible: body.visible ?? true,
+      sortOrder: body.sortOrder ?? 0,
+    })
+    .returning();
+
+  return NextResponse.json({ item: created }, { status: 201 });
+}

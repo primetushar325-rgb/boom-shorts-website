@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { freeVideoCards } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { isAdminAuthed } from "@/lib/requireAdmin";
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await isAdminAuthed();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const patch: Record<string, unknown> = { ...body };
+  delete patch.id;
+  const [updated] = await db
+    .update(freeVideoCards)
+    .set(patch)
+    .where(eq(freeVideoCards.id, Number(id)))
+    .returning();
+  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ item: updated });
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await isAdminAuthed();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  await db.delete(freeVideoCards).where(eq(freeVideoCards.id, Number(id)));
+  return NextResponse.json({ ok: true });
+}

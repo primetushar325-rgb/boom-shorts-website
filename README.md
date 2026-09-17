@@ -15,6 +15,20 @@ next request, with no redeploy.
 
 ---
 
+### Mass assignment
+
+Every admin route writes through an explicit allowlist — no route spreads the
+request body into a patch. Two tests enforce this: no API route may contain
+`...body` in executable code (comments are stripped before checking), and each
+content route's `SPEC` must exist, be non-empty, and exclude `id`/`createdAt`.
+
+### SEO
+
+`src/app/robots.ts` disallows `/admin` and `/api`. `src/app/sitemap.ts` emits
+the static customer pages plus one entry per visible package; set
+`NEXT_PUBLIC_SITE_URL` so the absolute URLs point at your real domain (it
+defaults to a placeholder).
+
 ### Secret scanning
 
 A real Supabase pooler password was committed in `4a64128` and had to be
@@ -202,8 +216,8 @@ Both suites boot **PGlite** (real Postgres compiled to WASM), apply every
 committed migration, then exercise the shipped code — never a re-implementation.
 
 ```bash
-npm test                # service layer   (24 assertions)
-npm run test:integration # HTTP + pages   (32 assertions)
+npm test                # service layer   (27 assertions)
+npm run test:integration # HTTP + pages   (36 assertions)
 npm run test:all
 ```
 

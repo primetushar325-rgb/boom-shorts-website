@@ -690,6 +690,54 @@ await test("an unknown checkout package triggers Next's notFound()", async () =>
   );
 });
 
+// ---------------------------------------------------------------------------
+console.log("\nWhatsApp notification must never fail an order");
+// ---------------------------------------------------------------------------
+
+await test("an order still succeeds when the Cloud API is configured but unreachable", async () => {
+  // This sandbox has no egress to graph.facebook.com, so enabling the Cloud API
+  // here simulates a WhatsApp outage. The order must still be created — the
+  // notification is fire-and-forget with its own catch.
+  const saved = {
+    token: process.env.WHATSAPP_CLOUD_TOKEN,
+    phone: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  };
+  process.env.WHATSAPP_CLOUD_TOKEN = "test-token";
+  process.env.WHATSAPP_PHONE_NUMBER_ID = "1234567890";
+
+  try {
+    const { whatsappCloudConfigured } = await import("../src/lib/whatsapp");
+    assert.equal(whatsappCloudConfigured(), true, "Cloud API should read as configured");
+
+    const pkg = (
+      await client.query<{ id: number }>(`select id from packages where available limit 1`)
+    ).rows[0];
+
+    const res = await ordersRoute.POST(
+      post("/api/orders", {
+        packageId: pkg.id,
+        customerName: "Outage Test",
+        whatsapp: "01712345699",
+        paymentMethod: "bKash",
+        transactionId: `OUTAGE-${Date.now()}`,
+        senderNumber: "01712345699",
+      }),
+    );
+
+    assert.equal(res.status, 201, `expected 201 despite the WhatsApp outage, got ${res.status}`);
+    const data = (await res.json()) as { orderNumber: string };
+    assert.match(data.orderNumber, /^BBS-\d{6}$/, "order number must still be issued");
+  } finally {
+    for (const [k, v] of Object.entries({
+      WHATSAPP_CLOUD_TOKEN: saved.token,
+      WHATSAPP_PHONE_NUMBER_ID: saved.phone,
+    })) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 await client.close();
 process.exit(failed > 0 ? 1 : 0);

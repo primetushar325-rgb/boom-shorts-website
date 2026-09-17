@@ -110,6 +110,7 @@ export default async function HomePage() {
         facebookLink={s.facebookLink}
         messengerLink={s.messengerLink}
         telegramLink={s.telegramLink}
+        freeVideoLink={s.freeVideoLink}
       />
 
       <BottomNav />

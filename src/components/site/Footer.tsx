@@ -6,13 +6,22 @@ export default function Footer({
   facebookLink,
   messengerLink,
   telegramLink,
+  freeVideoLink,
 }: {
   siteName: string;
   whatsappLink: string;
   facebookLink: string;
   messengerLink: string;
   telegramLink: string;
+  /**
+   * Admin-configured destination for "Free Videos" (Site Settings). When it is
+   * set the link goes there in a new tab; when empty we fall back to the
+   * built-in /free page. Previously this setting was editable in the admin but
+   * read by nothing, so changing it had no effect.
+   */
+  freeVideoLink?: string;
 }) {
+  const external = (freeVideoLink ?? "").trim();
   const socials = [
     { href: whatsappLink, label: "WhatsApp" },
     { href: facebookLink, label: "Facebook" },
@@ -30,7 +39,18 @@ export default function Footer({
           <a href="#reviews" className="hover:text-bs-primary">Reviews</a>
           <a href="#faq" className="hover:text-bs-primary">FAQ</a>
           <Link href="/orders" className="hover:text-bs-primary">My Orders</Link>
-          <Link href="/free" className="hover:text-bs-primary">Free Videos</Link>
+          {external ? (
+            <a
+              href={external}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-bs-primary"
+            >
+              Free Videos
+            </a>
+          ) : (
+            <Link href="/free" className="hover:text-bs-primary">Free Videos</Link>
+          )}
         </nav>
 
         {socials.length > 0 ? (

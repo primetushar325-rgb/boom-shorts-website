@@ -220,6 +220,7 @@ await db.insert(schema.coupons).values({ code: "DEAD10", discountPercent: 10, ac
 await db.insert(schema.testimonials).values([
   { name: "Rahim Uddin", message: "Fast delivery, great shorts.", rating: 5, approved: true, visible: true },
   { name: "Unapproved Person", message: "This should never render.", rating: 5, approved: false, visible: true },
+  { name: "Hidden By Admin", message: "Approved but hidden by the admin.", rating: 5, approved: true, visible: false },
 ]);
 
 // ---------------------------------------------------------------------------
@@ -546,6 +547,147 @@ await test("sensitive tables get no permissive policy (deny by default)", async 
   for (const sensitive of ["settings", "payments", "admin_users", "admin_sessions", "coupons"]) {
     assert.ok(!withPolicies.has(sensitive), `${sensitive} must have no policy (deny by default)`);
   }
+});
+
+// ---------------------------------------------------------------------------
+console.log("\n/reviews — the bottom-nav Reviews destination");
+// ---------------------------------------------------------------------------
+
+await test("reviews page shows only approved AND visible reviews", async () => {
+  const ReviewsPage = (await import("../src/app/(site)/reviews/page")).default;
+  const tree = await renderPage(() => ReviewsPage());
+  const text = textOf(tree);
+
+  assert.ok(text.includes("Rahim Uddin"), "the approved, visible review must render");
+  assert.ok(!text.includes("Unapproved Person"), "unapproved reviews must never render");
+  assert.ok(!text.includes("Hidden By Admin"), "admin-hidden reviews must never render");
+  assert.ok(!text.includes("This should never render"), "unapproved text leaked");
+});
+
+await test("reviews page computes its average from the rows it actually shows", async () => {
+  const ReviewsPage = (await import("../src/app/(site)/reviews/page")).default;
+  const tree = await renderPage(() => ReviewsPage());
+  const text = textOf(tree);
+
+  const res = await client.query<{ n: string; avg: string }>(
+    `select count(*)::text as n, coalesce(round(avg(rating),1),0)::text as avg
+       from testimonials where approved and visible`,
+  );
+  const expectedCount = Number(res.rows[0].n);
+  assert.ok(expectedCount > 0, "expected at least one visible review");
+  assert.ok(text.includes(String(expectedCount)), `expected the count ${expectedCount} to render`);
+  assert.ok(text.includes(res.rows[0].avg), `expected the average ${res.rows[0].avg} to render`);
+});
+
+await test("the bottom nav points at four real destinations", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const nav = rf(join(process.cwd(), "src/components/site/BottomNav.tsx"), "utf8");
+  for (const href of ['"/"', '"/orders"', '"/reviews"', '"/profile"']) {
+    assert.ok(nav.includes(href), `bottom nav missing ${href}`);
+  }
+  // Every destination must be a real route, not a dead link.
+  for (const dir of ["reviews", "orders", "profile"]) {
+    const ok = readdirSync(join(process.cwd(), "src/app/(site)", dir)).includes("page.tsx");
+    assert.ok(ok, `src/app/(site)/${dir}/page.tsx must exist`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nPATCH /api/settings — admin auth + no mass assignment");
+// ---------------------------------------------------------------------------
+
+await test("unauthenticated PATCH /api/settings is rejected", async () => {
+  const settingsRoute = await import("../src/app/api/settings/route");
+  const req = new NextRequest("http://localhost:3000/api/settings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ siteName: "Hijacked", adminPasswordHash: "attacker" }),
+  });
+  const res = await renderPage(() => settingsRoute.PATCH(req));
+  assert.equal(res.status, 401, `expected 401, got ${res.status}`);
+});
+
+await test("the settings allowlist drops columns that must never be set", async () => {
+  const { buildPatch } = await import("../src/lib/adminCrud");
+  const src = await import("node:fs");
+  const route = src
+    .readFileSync(join(process.cwd(), "src/app/api/settings/route.ts"), "utf8")
+    .split("const SPEC: FieldSpec = {")[1]
+    .split("};")[0];
+  const allowed = new Set([...route.matchAll(/^\s*([a-zA-Z]+):/gm)].map((m) => m[1]));
+
+  // Every settings column the admin may legitimately edit must be allowlisted,
+  // and the sensitive/derived ones must not be.
+  for (const forbidden of ["id", "adminPasswordHash", "totalVisitors", "updatedAt"]) {
+    assert.ok(!allowed.has(forbidden), `${forbidden} must not be in the allowlist`);
+  }
+  for (const expected of ["siteName", "whatsappNumber", "bkashNumber", "offerEndsAt"]) {
+    assert.ok(allowed.has(expected), `${expected} should be editable`);
+  }
+
+  const patch = buildPatch(
+    { siteName: "Boom Shorts", adminPasswordHash: "x", id: 99, evil: "y" },
+    { siteName: (v) => String(v) },
+  );
+  assert.deepEqual(Object.keys(patch), ["siteName"], "only allowlisted keys survive");
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nSiteHelp — the site-wide WhatsApp button");
+// ---------------------------------------------------------------------------
+
+await test("the floating help button is rendered from the layout with the settings number", async () => {
+  const SiteHelp = (await import("../src/components/site/SiteHelp")).default;
+  const WhatsAppButton = (await import("../src/components/site/WhatsAppButton")).default;
+
+  const tree = await renderPage(() => SiteHelp());
+  const props = findProps(tree, WhatsAppButton);
+  assert.equal(props.length, 1, "expected exactly one WhatsAppButton — no duplicate");
+
+  const rows = await client.query<{ whatsapp_number: string }>(
+    `select whatsapp_number from settings where id = 1`,
+  );
+  assert.ok(rows.rows[0], "settings row must exist");
+  assert.equal(
+    props[0].whatsappNumber,
+    rows.rows[0].whatsapp_number,
+    "the number must come from settings, not be hard-coded",
+  );
+  assert.ok(String(props[0].whatsappNumber).length > 5, "number must not be empty");
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nnot-found handling for unknown orders and packages");
+// ---------------------------------------------------------------------------
+
+/**
+ * Next signals `notFound()` by throwing a tagged error rather than returning.
+ * The digest is "NEXT_HTTP_ERROR_FALLBACK;404" — asserting on it proves the
+ * route really calls notFound() (and so renders the branded not-found page)
+ * instead of silently rendering an empty shell.
+ */
+function isNotFound(err: unknown): boolean {
+  const digest = String((err as { digest?: unknown })?.digest ?? "");
+  return digest.includes("NEXT_HTTP_ERROR_FALLBACK;404");
+}
+// ---------------------------------------------------------------------------
+
+await test("an unknown order number triggers Next's notFound()", async () => {
+  const OrderPage = (await import("../src/app/(site)/order/[orderNumber]/page")).default;
+  await assert.rejects(
+    () => renderPage(() => OrderPage({ params: Promise.resolve({ orderNumber: "BBS-000000" }) })),
+    isNotFound,
+    "expected a notFound() signal",
+  );
+});
+
+await test("an unknown checkout package triggers Next's notFound()", async () => {
+  const CheckoutPage = (await import("../src/app/(site)/checkout/[packageId]/page")).default;
+  await assert.rejects(
+    () => renderPage(() => CheckoutPage({ params: Promise.resolve({ packageId: "999999" }) })),
+    isNotFound,
+    "expected a notFound() signal",
+  );
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

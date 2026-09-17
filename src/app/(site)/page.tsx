@@ -17,7 +17,6 @@ import Testimonials from "@/components/site/Testimonials";
 import FAQSection from "@/components/site/FAQSection";
 import Footer from "@/components/site/Footer";
 import BottomNav from "@/components/site/BottomNav";
-import WhatsAppButton from "@/components/site/WhatsAppButton";
 import VisitPing from "@/components/site/VisitPing";
 
 export const dynamic = "force-dynamic";
@@ -113,7 +112,6 @@ export default async function HomePage() {
         telegramLink={s.telegramLink}
       />
 
-      <WhatsAppButton whatsappNumber={s.whatsappNumber} siteName={s.siteName} />
       <BottomNav />
     </div>
   );

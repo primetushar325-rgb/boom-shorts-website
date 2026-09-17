@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks commits that contain live credentials.
+# Enable once per clone:  git config core.hooksPath .githooks
+node scripts/check-secrets.mjs || exit 1

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "../globals.css";
+import SiteHelp from "@/components/site/SiteHelp";
 
 export const metadata: Metadata = {
   title: {
@@ -28,7 +29,10 @@ export const viewport: Viewport = {
 export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-bs-bg text-bs-ink antialiased">{children}</body>
+      <body className="bg-bs-bg text-bs-ink antialiased">
+        {children}
+        <SiteHelp />
+      </body>
     </html>
   );
 }

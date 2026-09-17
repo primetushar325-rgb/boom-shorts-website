@@ -404,6 +404,60 @@ await test("order numbers are unique across many orders", async () => {
 });
 
 // ---------------------------------------------------------------------------
+console.log("\npayment screenshot storage — private by default");
+// ---------------------------------------------------------------------------
+
+await test("the public Vercel Blob fallback is OFF unless explicitly enabled", async () => {
+  const { publicFallbackAllowed, supabaseStorageConfigured } = await import("../src/lib/storage");
+
+  const saved = process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK;
+  try {
+    for (const value of [undefined, "", "false", "0", "no", "FALSE"]) {
+      if (value === undefined) delete process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK;
+      else process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK = value;
+      assert.equal(
+        publicFallbackAllowed(),
+        false,
+        `fallback must stay off for ${JSON.stringify(value)}`,
+      );
+    }
+    for (const value of ["true", "1", "yes", "TRUE"]) {
+      process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK = value;
+      assert.equal(publicFallbackAllowed(), true, `fallback must turn on for ${value}`);
+    }
+  } finally {
+    if (saved === undefined) delete process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK;
+    else process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK = saved;
+  }
+  assert.equal(supabaseStorageConfigured(), false, "not configured in the test env");
+});
+
+await test("upload fails loudly rather than publishing a screenshot publicly", async () => {
+  const { uploadScreenshot } = await import("../src/lib/storage");
+  const file = new File([new Uint8Array([1, 2, 3])], "shot.png", { type: "image/png" });
+
+  const saved = process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK;
+  delete process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK;
+  try {
+    await assert.rejects(() => uploadScreenshot(file), /SUPABASE_URL/);
+  } finally {
+    if (saved !== undefined) process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK = saved;
+  }
+});
+
+await test("oversized and non-image files are rejected before any upload", async () => {
+  const { validateImageFile } = await import("../src/lib/storage");
+  const ok = new File([new Uint8Array(10)], "a.png", { type: "image/png" });
+  assert.equal(validateImageFile(ok), null);
+
+  const exe = new File([new Uint8Array(10)], "a.exe", { type: "application/x-msdownload" });
+  assert.match(String(validateImageFile(exe)), /PNG, JPG, WEBP or GIF/);
+
+  const big = new File([new Uint8Array(9 * 1024 * 1024)], "big.png", { type: "image/png" });
+  assert.match(String(validateImageFile(big)), /too large/);
+});
+
+// ---------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failed} failed`);
 await client.close();
 process.exit(failed > 0 ? 1 : 0);

@@ -15,6 +15,47 @@ next request, with no redeploy.
 
 ---
 
+### Secret scanning
+
+A real Supabase pooler password was committed in `4a64128` and had to be
+rotated. Removing it from the working tree does **not** remove it from Git
+history, so the durable control is preventing new leaks:
+
+```bash
+npm run check:secrets          # scan tracked files
+node scripts/check-secrets.mjs # scan staged files (what the hook runs)
+git config core.hooksPath .githooks   # enable the pre-commit hook (once per clone)
+```
+
+The hook is verified to block the actual historical credential, not just a
+synthetic one.
+
+### Admin navigation — what is listed and what is not
+
+`/admin/testimonials` and `/admin/sections` are intentionally **not** in
+`ADMIN_NAV`:
+
+| Page | Status | Reason |
+| --- | --- | --- |
+| `/admin/faqs` | listed | rendered by `FAQSection` on the homepage |
+| `/admin/gallery` | listed | rendered by `GallerySection` |
+| `/admin/notices` | listed | rendered by `NoticeBoard` |
+| `/admin/proof-slides` | listed | rendered by `ClientReviewSlider` |
+| `/admin/free-video` | listed | backs `/free`, linked from the footer |
+| `/admin/testimonials` | hidden | edits the **same** `testimonials` table as `/admin/reviews`; two editors for one table invites conflicting writes |
+| `/admin/sections` | hidden | the `sections` table is not read by any customer page |
+
+Both hidden pages still exist and are reachable by URL if ever wanted.
+
+### Payment screenshot storage
+
+Supabase Storage (private bucket) is the primary backend; only the object
+*path* is stored in the database and admins view screenshots through
+short-lived signed URLs. The Vercel Blob fallback stores objects **publicly**,
+so it is disabled unless `ALLOW_PUBLIC_SCREENSHOT_FALLBACK=true` is set —
+otherwise the upload fails loudly rather than publishing a customer's payment
+evidence to an unauthenticated URL.
+
 ## Stack
 
 | Layer | Choice |
@@ -162,7 +203,7 @@ committed migration, then exercise the shipped code — never a re-implementatio
 
 ```bash
 npm test                # service layer   (24 assertions)
-npm run test:integration # HTTP + pages   (24 assertions)
+npm run test:integration # HTTP + pages   (32 assertions)
 npm run test:all
 ```
 

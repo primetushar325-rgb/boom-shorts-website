@@ -11,6 +11,21 @@ import { useState } from "react";
  * collapsible sidebar from `lg` upwards, so the same app works on a phone and
  * on a desktop without an oversized mobile nav.
  */
+/**
+ * Admin navigation.
+ *
+ * Mobile shows the first five plus a "More" sheet, so the ordering is
+ * deliberate: the five day-to-day screens come first.
+ *
+ * Deliberately NOT listed (both pages still exist, they are just redundant):
+ *  - /admin/testimonials — manages the SAME `testimonials` table as
+ *    /admin/reviews (see src/app/api/reviews/route.ts and
+ *    src/app/api/testimonials/route.ts, which both import `testimonials`).
+ *    Two editors for one table invites conflicting writes; /admin/reviews is
+ *    the newer one (customer submissions + approval), so it wins.
+ *  - /admin/sections — the `sections` table is not read by any customer page.
+ *    Kept on disk in case it is wanted later, but hidden rather than offered.
+ */
 export const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: "📊", exact: true },
   { href: "/admin/orders", label: "Orders", icon: "🧾" },
@@ -22,6 +37,11 @@ export const ADMIN_NAV = [
   { href: "/admin/coupons", label: "Coupons", icon: "🏷️" },
   { href: "/admin/banners", label: "Banner", icon: "🖼️" },
   { href: "/admin/settings", label: "Settings", icon: "⚙️" },
+  { href: "/admin/faqs", label: "FAQs", icon: "❓" },
+  { href: "/admin/gallery", label: "Gallery", icon: "🎞️" },
+  { href: "/admin/notices", label: "Notices", icon: "📣" },
+  { href: "/admin/proof-slides", label: "Proof", icon: "🏆" },
+  { href: "/admin/free-video", label: "Free Videos", icon: "🎁" },
 ];
 
 export default function AdminShell({

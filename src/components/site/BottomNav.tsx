@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/", label: "Home", icon: "🏠", match: (p: string) => p === "/" },
   { href: "/orders", label: "Orders", icon: "🧾", match: (p: string) => p.startsWith("/orders") || p.startsWith("/order/") },
-  { href: "/#reviews", label: "Reviews", icon: "⭐", match: () => false },
+  { href: "/reviews", label: "Reviews", icon: "⭐", match: (p: string) => p === "/reviews" },
   { href: "/profile", label: "Profile", icon: "👤", match: (p: string) => p.startsWith("/profile") },
 ];
 

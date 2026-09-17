@@ -9,9 +9,11 @@ import { put } from "@vercel/blob";
  * is written to the database; image bytes never live in a table column. Admins
  * view screenshots through short-lived signed URLs minted server-side.
  *
- * Fallback: if Supabase Storage is not configured, the screenshot goes to
- * Vercel Blob (public) so an existing deployment keeps working. The active
- * backend is reported in the upload response and logged, never guessed.
+ * Fallback: Vercel Blob. Note that Blob objects are PUBLIC, and a payment
+ * screenshot contains a transaction id and a phone number, so the fallback is
+ * OFF unless `ALLOW_PUBLIC_SCREENSHOT_FALLBACK=true` is set explicitly. Without
+ * Supabase Storage configured the upload fails loudly instead of quietly
+ * publishing customer payment evidence to an unauthenticated URL.
  *
  * Required env for the primary backend:
  *   SUPABASE_URL                e.g. https://xyz.supabase.co
@@ -108,12 +110,27 @@ async function uploadToBlob(file: File): Promise<UploadResult> {
   return { backend: "vercel-blob", path: blob.url, url: blob.url };
 }
 
+/**
+ * The Blob fallback is opt-in because Blob objects are public.
+ * Only "true"/"1"/"yes" enable it — a commented-out or empty value does not.
+ */
+export function publicFallbackAllowed(): boolean {
+  return /^(true|1|yes)$/i.test((process.env.ALLOW_PUBLIC_SCREENSHOT_FALLBACK || "").trim());
+}
+
 /** Uploads a payment screenshot, preferring Supabase Storage. */
 export async function uploadScreenshot(file: File): Promise<UploadResult> {
   const problem = validateImageFile(file);
   if (problem) throw new Error(problem);
 
   if (supabaseStorageConfigured()) return uploadToSupabase(file);
+
+  if (!publicFallbackAllowed()) {
+    throw new Error(
+      "Screenshot storage is not configured. Set SUPABASE_URL and " +
+        "SUPABASE_SERVICE_ROLE_KEY so screenshots are stored in a private bucket.",
+    );
+  }
   return uploadToBlob(file);
 }
 

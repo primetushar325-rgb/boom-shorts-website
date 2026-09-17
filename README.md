@@ -162,7 +162,7 @@ committed migration, then exercise the shipped code — never a re-implementatio
 
 ```bash
 npm test                # service layer   (24 assertions)
-npm run test:integration # HTTP + pages   (16 assertions)
+npm run test:integration # HTTP + pages   (20 assertions)
 npm run test:all
 ```
 
@@ -190,6 +190,12 @@ npm run test:all
 - `CheckoutPage()`: package, final + strikethrough price, `Save 20%` pill, the
   extracted YouTube id, and the configured payment numbers handed to the form
 - checkout for an unavailable package shows the notice and **no order button**
+- **`drizzle/rls-policies.sql` applies cleanly**: every statement executes, RLS
+  ends up on all 19 tables (including `settings`), the 13 expected policies
+  exist, and sensitive tables (`settings`, `payments`, `admin_users`,
+  `admin_sessions`, `coupons`) have **no** permissive policy — deny by default.
+  The test creates the `anon`/`authenticated` roles that Supabase provisions
+  and PGlite lacks.
 
 > Admin-gated routes are not in the integration suite because `cookies()` throws
 > outside a Next request scope. They were verified over real HTTP instead:

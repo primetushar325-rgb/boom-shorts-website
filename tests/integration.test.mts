@@ -400,6 +400,94 @@ await test("the order created over HTTP is readable by order number", async () =
   assert.equal(Number(rows[0].finalAmount), 400);
 });
 
+// ---------------------------------------------------------------------------
+console.log("\ndrizzle/rls-policies.sql — applies cleanly to real Postgres");
+// ---------------------------------------------------------------------------
+
+/**
+ * Strips `--` comment lines BEFORE splitting into statements.
+ *
+ * Doing it the other way round (split, then drop chunks starting with `--`)
+ * silently discards any statement that follows a comment block in the same
+ * chunk — which is exactly how `ALTER TABLE settings ENABLE ROW LEVEL SECURITY`
+ * went missing on the first run of this check.
+ */
+function splitSql(sql: string): string[] {
+  const withoutComments = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  return withoutComments
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+await test("every statement in the RLS file executes", async () => {
+  // Supabase provisions these two roles on every project; PGlite does not.
+  // Creating them here lets the policy SQL itself be validated. On a real
+  // Supabase project this CREATE ROLE is unnecessary (and would be a no-op
+  // conflict), which is why it lives in the test and not in the SQL file.
+  await client.exec(`DO $$ BEGIN
+    CREATE ROLE anon NOLOGIN;
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+  await client.exec(`DO $$ BEGIN
+    CREATE ROLE authenticated NOLOGIN;
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
+
+  const { readFileSync: rf } = await import("node:fs");
+  const sql = rf(join(process.cwd(), "drizzle/rls-policies.sql"), "utf8");
+  const statements = splitSql(sql);
+  assert.ok(statements.length > 30, `expected many statements, got ${statements.length}`);
+
+  const failures: string[] = [];
+  for (const stmt of statements) {
+    try {
+      await client.exec(stmt);
+    } catch (err) {
+      failures.push(`${stmt.slice(0, 60).replace(/\s+/g, " ")} -> ${String((err as Error).message).slice(0, 90)}`);
+    }
+  }
+  assert.deepEqual(failures, [], `RLS statements failed:\n      ${failures.join("\n      ")}`);
+});
+
+await test("RLS is enabled on all 19 tables — including settings", async () => {
+  const res = await client.query<{ relname: string; relrowsecurity: boolean }>(
+    `select relname, relrowsecurity from pg_class
+      where relkind = 'r' and relnamespace = 'public'::regnamespace order by relname`,
+  );
+  const off = res.rows.filter((r) => !r.relrowsecurity).map((r) => r.relname);
+  assert.deepEqual(off, [], `RLS missing on: ${off.join(", ")}`);
+  assert.equal(res.rows.length, 19);
+});
+
+await test("the 13 expected policies exist", async () => {
+  const res = await client.query<{ policyname: string }>(
+    `select policyname from pg_policies where schemaname = 'public' order by 1`,
+  );
+  const names = res.rows.map((r) => r.policyname);
+  for (const expected of [
+    "public read packages",
+    "public read approved reviews",
+    "customer reads own orders",
+    "customer reads own order items",
+    "customer reads own profile",
+  ]) {
+    assert.ok(names.includes(expected), `missing policy: ${expected}`);
+  }
+  assert.equal(names.length, 13);
+});
+
+await test("sensitive tables get no permissive policy (deny by default)", async () => {
+  const res = await client.query<{ tablename: string }>(
+    `select distinct tablename from pg_policies where schemaname = 'public'`,
+  );
+  const withPolicies = new Set(res.rows.map((r) => r.tablename));
+  for (const sensitive of ["settings", "payments", "admin_users", "admin_sessions", "coupons"]) {
+    assert.ok(!withPolicies.has(sensitive), `${sensitive} must have no policy (deny by default)`);
+  }
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 await client.close();
 process.exit(failed > 0 ? 1 : 0);

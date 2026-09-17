@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function OrdersLookup({ initial }: { initial: string }) {
+export default function OrdersLookup({
+  initial,
+  to = "/orders",
+}: {
+  initial: string;
+  /** Where to send the visitor — reused by /profile with its own prefix. */
+  to?: string;
+}) {
   const router = useRouter();
   const [phone, setPhone] = useState(initial ?? "");
 
@@ -11,7 +18,7 @@ export default function OrdersLookup({ initial }: { initial: string }) {
     e.preventDefault();
     const value = phone.trim();
     if (!value) return;
-    router.push(`/orders?phone=${encodeURIComponent(value)}`);
+    router.push(`${to}?phone=${encodeURIComponent(value)}`);
     router.refresh();
   }
 

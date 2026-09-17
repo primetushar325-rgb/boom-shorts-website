@@ -10,7 +10,7 @@
     "test": "tsx tests/e2e.test.mts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "test:integration": "tsx tests/integration.test.mts",
+    "test:integration": "tsx --import ./tests/setup-next-als.mts tests/integration.test.mts",
     "test:all": "npm test && npm run test:integration"
   },
   "dependencies": {

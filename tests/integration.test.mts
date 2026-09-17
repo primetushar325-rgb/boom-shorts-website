@@ -15,6 +15,9 @@
  * Run with: npm run test:integration
  */
 import assert from "node:assert/strict";
+// `globalThis.AsyncLocalStorage` is installed by tests/setup-next-als.mts,
+// which the npm script preloads with `tsx --import` so it runs before any
+// hoisted next/dist import captures the (missing) global.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
@@ -70,6 +73,24 @@ const HomePage = (await import("../src/app/(site)/page")).default;
 const PackageCard = (await import("../src/components/site/PackageCard")).default;
 const CheckoutForm = (await import("../src/app/(site)/checkout/[packageId]/CheckoutForm")).default;
 const CheckoutPage = (await import("../src/app/(site)/checkout/[packageId]/page")).default;
+const ProfilePage = (await import("../src/app/(site)/profile/page")).default;
+
+/**
+ * Runs a page inside the minimum Next.js work store needed for `cookies()` to
+ * work. `forceStatic` makes cookies() hand back an empty jar, i.e. a guest
+ * visitor with no customer session — which is the realistic case here, since
+ * nothing in the app writes customer_sessions yet.
+ */
+async function renderPage<T>(page: () => Promise<T>): Promise<T> {
+  const { workAsyncStorage } = await import(
+    "next/dist/server/app-render/work-async-storage.external"
+  );
+  const store = { forceStatic: true, route: "/test", dynamicShouldError: false };
+  return (workAsyncStorage as { run: (s: unknown, fn: () => Promise<T>) => Promise<T> }).run(
+    store,
+    page,
+  );
+}
 
 function post(url: string, body: unknown): NextRequest {
   return new NextRequest(`http://localhost:3000${url}`, {
@@ -398,6 +419,45 @@ await test("the order created over HTTP is readable by order number", async () =
   assert.equal(rows.length, 1);
   assert.equal(rows[0].status, "pending");
   assert.equal(Number(rows[0].finalAmount), 400);
+});
+
+// ---------------------------------------------------------------------------
+console.log("\n/profile — the bottom-nav tab that used to 404");
+// ---------------------------------------------------------------------------
+
+await test("profile shows the customer and their order summary", async () => {
+  const tree = await renderPage(() => ProfilePage({ searchParams: Promise.resolve({ phone: "8801712345678" }) }));
+  const text = textOf(tree);
+  assert.ok(text.includes("Rahim Uddin"), `expected the customer name, got: ${text.slice(0, 200)}`);
+  assert.ok(text.includes("8801712345678"), "expected the WhatsApp number");
+  assert.ok(text.includes("My Profile"), "expected the page heading");
+  assert.ok(text.includes("Total Orders"), "expected the stats tiles");
+  assert.ok(text.includes("Recent Orders"), "expected the recent orders section");
+});
+
+await test("profile totals match the orders actually placed", async () => {
+  const tree = await renderPage(() => ProfilePage({ searchParams: Promise.resolve({ phone: "8801712345678" }) }));
+  const rows = await client.query<{ n: string }>(
+    `select count(*)::text as n from orders where whatsapp = '8801712345678'`,
+  );
+  const count = Number(rows.rows[0].n);
+  assert.ok(count > 0, "expected the seed to have created orders");
+  // The "Total Orders" tile renders the count; it must not be a hardcoded 1.
+  assert.ok(textOf(tree).includes(String(count)), `expected ${count} orders shown`);
+});
+
+await test("profile renders a helpful empty state for an unknown number", async () => {
+  const tree = await renderPage(() => ProfilePage({ searchParams: Promise.resolve({ phone: "8801999999999" }) }));
+  const text = textOf(tree);
+  assert.ok(text.includes("No profile found for that number"), `got: ${text.slice(0, 200)}`);
+  assert.ok(!text.includes("Rahim Uddin"), "must not leak another customer's name");
+});
+
+await test("profile with no lookup shows the lookup form, not an error", async () => {
+  const tree = await renderPage(() => ProfilePage({ searchParams: Promise.resolve({}) }));
+  const text = textOf(tree);
+  assert.ok(text.includes("Look up your profile"), `got: ${text.slice(0, 200)}`);
+  assert.ok(text.includes("never ask for a password"), "expected the no-password reassurance");
 });
 
 // ---------------------------------------------------------------------------

@@ -162,7 +162,7 @@ committed migration, then exercise the shipped code — never a re-implementatio
 
 ```bash
 npm test                # service layer   (24 assertions)
-npm run test:integration # HTTP + pages   (20 assertions)
+npm run test:integration # HTTP + pages   (24 assertions)
 npm run test:all
 ```
 
@@ -190,6 +190,8 @@ npm run test:all
 - `CheckoutPage()`: package, final + strikethrough price, `Save 20%` pill, the
   extracted YouTube id, and the configured payment numbers handed to the form
 - checkout for an unavailable package shows the notice and **no order button**
+- `/profile` renders the customer, their lifetime totals and recent orders,
+  and returns a useful empty state for an unknown number
 - **`drizzle/rls-policies.sql` applies cleanly**: every statement executes, RLS
   ends up on all 19 tables (including `settings`), the 13 expected policies
   exist, and sensitive tables (`settings`, `payments`, `admin_users`,

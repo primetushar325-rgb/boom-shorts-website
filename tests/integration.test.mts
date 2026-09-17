@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 // `globalThis.AsyncLocalStorage` is installed by tests/setup-next-als.mts,
 // which the npm script preloads with `tsx --import` so it runs before any
 // hoisted next/dist import captures the (missing) global.
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -746,51 +746,63 @@ await test("an unknown checkout package triggers Next's notFound()", async () =>
 });
 
 // ---------------------------------------------------------------------------
-console.log("\nWhatsApp notification must never fail an order");
+console.log("\nWhatsApp — free click-to-chat only, no paid API");
 // ---------------------------------------------------------------------------
 
-await test("an order still succeeds when the Cloud API is configured but unreachable", async () => {
-  // This sandbox has no egress to graph.facebook.com, so enabling the Cloud API
-  // here simulates a WhatsApp outage. The order must still be created — the
-  // notification is fire-and-forget with its own catch.
-  const saved = {
-    token: process.env.WHATSAPP_CLOUD_TOKEN,
-    phone: process.env.WHATSAPP_PHONE_NUMBER_ID,
-  };
-  process.env.WHATSAPP_CLOUD_TOKEN = "test-token";
-  process.env.WHATSAPP_PHONE_NUMBER_ID = "1234567890";
+await test("no WhatsApp Cloud API or paid messaging service exists in the code", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const srcDir = join(process.cwd(), "src");
 
-  try {
-    const { whatsappCloudConfigured } = await import("../src/lib/whatsapp");
-    assert.equal(whatsappCloudConfigured(), true, "Cloud API should read as configured");
-
-    const pkg = (
-      await client.query<{ id: number }>(`select id from packages where available limit 1`)
-    ).rows[0];
-
-    const res = await ordersRoute.POST(
-      post("/api/orders", {
-        packageId: pkg.id,
-        customerName: "Outage Test",
-        whatsapp: "01712345699",
-        paymentMethod: "bKash",
-        transactionId: `OUTAGE-${Date.now()}`,
-        senderNumber: "01712345699",
-      }),
-    );
-
-    assert.equal(res.status, 201, `expected 201 despite the WhatsApp outage, got ${res.status}`);
-    const data = (await res.json()) as { orderNumber: string };
-    assert.match(data.orderNumber, /^BBS-\d{6}$/, "order number must still be issued");
-  } finally {
-    for (const [k, v] of Object.entries({
-      WHATSAPP_CLOUD_TOKEN: saved.token,
-      WHATSAPP_PHONE_NUMBER_ID: saved.phone,
-    })) {
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
+  const files: string[] = [];
+  (function walk(dir: string) {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      const st = statSync(full);
+      if (st.isDirectory()) walk(full);
+      else if (/\.(ts|tsx)$/.test(entry)) files.push(full);
     }
+  })(srcDir);
+
+  const banned = [
+    "graph.facebook.com",
+    "WHATSAPP_CLOUD_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "sendWhatsAppText",
+    "whatsappCloudConfigured",
+    "api.whatsapp.com",
+    "twilio",
+  ];
+  const found: string[] = [];
+  for (const f of files) {
+    const code = rf(f, "utf8");
+    for (const b of banned) if (code.includes(b)) found.push(`${f.replace(srcDir, "src")}: ${b}`);
   }
+  assert.deepEqual(found, [], `paid WhatsApp API references found:\n      ${found.join("\n      ")}`);
+});
+
+await test("the order page WhatsApp link carries the full order details", async () => {
+  const OrderPage = (await import("../src/app/(site)/order/[orderNumber]/page")).default;
+  const tree = await renderPage(() =>
+    OrderPage({ params: Promise.resolve({ orderNumber: createdOrderNumber }) }),
+  );
+
+  const settingsRow = (
+    await client.query<{ whatsapp_number: string }>(`select whatsapp_number from settings where id = 1`)
+  ).rows[0];
+
+  const hrefs = findProps(tree, "a" as unknown)
+    .map((pr) => String(pr.href ?? ""))
+    .filter((h) => h.startsWith("https://wa.me/"));
+  assert.ok(hrefs.length > 0, "expected a wa.me click-to-chat link");
+
+  const link = decodeURIComponent(hrefs[0]);
+  const business = settingsRow.whatsapp_number.replace(/[^\d]/g, "");
+  assert.ok(link.includes(business), "the link must be addressed to the business number from settings");
+
+  for (const expected of ["Order ID", "Package", "Amount", "Payment", "Transaction ID", "Status"]) {
+    assert.ok(link.includes(expected), `the prefilled message must contain "${expected}"`);
+  }
+  assert.ok(link.includes(createdOrderNumber), "the message must contain the order number");
 });
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orders } from "@/db/schema";
+import { orders, packages } from "@/db/schema";
 import { getSettings } from "@/lib/settings";
 import { taka } from "@/lib/pricing";
 import { buildWhatsAppLink, orderWhatsAppMessage } from "@/lib/whatsapp";
@@ -44,6 +44,22 @@ export default async function OrderDetailsPage({
     : "unverified";
 
   const amount = taka(order.finalAmount ?? order.price);
+
+  // Quantity/duration live on the package, not on the order row, so join for
+  // the WhatsApp message. A missing package must never break the page.
+  const [pkg] = order.packageId
+    ? await db
+        .select({ videoQuantity: packages.videoQuantity, durationLabel: packages.durationLabel })
+        .from(packages)
+        .where(eq(packages.id, order.packageId))
+        .limit(1)
+    : [];
+  const pkgQuantity = [
+    pkg?.videoQuantity ? `${pkg.videoQuantity} video${pkg.videoQuantity === 1 ? "" : "s"}` : "",
+    pkg?.durationLabel ?? "",
+  ]
+    .filter(Boolean)
+    .join(" · ") || null;
   const waLink = buildWhatsAppLink(
     s.whatsappNumber,
     orderWhatsAppMessage({
@@ -51,6 +67,7 @@ export default async function OrderDetailsPage({
       customerName: order.customerName,
       whatsapp: order.whatsapp,
       packageName: order.packageName,
+      quantity: pkgQuantity,
       amount,
       paymentMethod: order.paymentMethod,
       transactionId: order.transactionId,

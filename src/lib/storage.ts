@@ -37,8 +37,20 @@ export type UploadResult = {
   url: string;
 };
 
+/**
+ * Supabase accepts two server-side key formats, so either one works:
+ *   SUPABASE_SERVICE_ROLE_KEY  legacy JWT (role: service_role)
+ *   SUPABASE_SECRET_KEY        newer `sb_secret_...` API key
+ * Both are server-only secrets and must never reach the browser.
+ */
+export function supabaseServerKey(): string | null {
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_SECRET_KEY?.trim() || "";
+  return key || null;
+}
+
 export function supabaseStorageConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(process.env.SUPABASE_URL && supabaseServerKey());
 }
 
 export function validateImageFile(file: File): string | null {
@@ -69,7 +81,7 @@ function buildObjectPath(file: File): string {
 }
 
 function serviceHeaders(): { Authorization: string; apikey: string } {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+  const key = supabaseServerKey() as string;
   return { Authorization: `Bearer ${key}`, apikey: key };
 }
 

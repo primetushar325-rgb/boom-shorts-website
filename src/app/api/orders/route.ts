@@ -4,8 +4,6 @@ import { db } from "@/db";
 import { orders } from "@/db/schema";
 import { requireAdminJson } from "@/lib/requireAdmin";
 import { createOrder, isPaymentMethod } from "@/lib/orders";
-import { sendWhatsAppText, whatsappCloudConfigured } from "@/lib/whatsapp";
-import { getSettings } from "@/lib/settings";
 import { taka } from "@/lib/pricing";
 
 /**
@@ -78,50 +76,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: result.status ?? 400 });
   }
 
-  // Optional automatic WhatsApp notifications. When the Cloud API is not
-  // configured this whole block is a no-op and the customer uses the prefilled
-  // wa.me link on the success page instead — the existing flow is preserved.
-  //
-  // Two messages go out: a confirmation to the customer, and the full order
-  // details to the business number from Site Settings. Both are fire-and-forget
-  // with their own catch, so a WhatsApp outage can never fail an order that has
-  // already been written to the database.
-  if (whatsappCloudConfigured()) {
-    const customerNote = [
-      `✅ Order ${result.orderNumber} received!`,
-      `Package: ${result.packageName}`,
-      `Amount: ${taka(result.finalAmount)}`,
-      `Status: ${result.statusLabel}`,
-      "We will verify your payment shortly.",
-    ].join("\n");
-
-    const businessNote = [
-      `🧾 New order ${result.orderNumber}`,
-      `Customer: ${String(body.customerName ?? "").trim() || "—"}`,
-      `WhatsApp: ${String(body.whatsapp ?? "")}`,
-      `Package: ${result.packageName}`,
-      `Amount: ${taka(result.finalAmount)}`,
-      `Method: ${result.paymentMethod}`,
-      `Txn ID: ${result.transactionId || "—"}`,
-      `Status: ${result.statusLabel}`,
-    ].join("\n");
-
-    const businessNumber = await getSettings()
-      .then((s) => s.whatsappNumber)
-      .catch(() => null);
-
-    const [toCustomer, toBusiness] = await Promise.all([
-      sendWhatsAppText(String(body.whatsapp), customerNote).catch(() => false),
-      businessNumber
-        ? sendWhatsAppText(businessNumber, businessNote).catch(() => false)
-        : Promise.resolve(false),
-    ]);
-
-    if (!toCustomer) console.warn(`[orders] customer WhatsApp notification not sent for ${result.orderNumber}`);
-    if (businessNumber && !toBusiness) {
-      console.warn(`[orders] business WhatsApp notification not sent for ${result.orderNumber}`);
-    }
-  }
+  // WhatsApp notification uses the FREE click-to-chat flow: the success page
+  // hands the customer a prefilled wa.me link addressed to the business number
+  // from Site Settings. No Cloud API, no token, no paid service — see
+  // src/lib/whatsapp.ts. Nothing to send server-side here.
 
   return NextResponse.json(
     {

@@ -11,6 +11,8 @@ export type WhatsAppOrderMessage = {
   customerName: string;
   whatsapp: string;
   packageName: string;
+  /** e.g. "30 Shorts" or a duration label — omitted when unknown */
+  quantity?: string | null;
   amount: string;
   paymentMethod: string;
   transactionId: string;
@@ -42,6 +44,7 @@ export function orderWhatsAppMessage(o: WhatsAppOrderMessage): string {
     `👤 Name: ${o.customerName}`,
     `📱 WhatsApp: ${o.whatsapp}`,
     `📦 Package: ${o.packageName}`,
+    ...(o.quantity ? [`🔢 Quantity: ${o.quantity}`] : []),
     `💰 Amount: ${o.amount}`,
     `💳 Payment: ${o.paymentMethod}`,
     `🔖 Transaction ID: ${o.transactionId}`,
@@ -57,50 +60,12 @@ export function helpWhatsAppMessage(siteName: string): string {
 }
 
 /**
- * Server-side automatic sending.
+ * There is deliberately NO server-side "send a WhatsApp message" here.
  *
- * WhatsApp has no free "send a message" API: the Cloud API requires a Meta
- * Business account plus a permanent access token and a sender phone number id.
- * When those are present we post the notification; when they are not, the
- * caller falls back to the prefilled link above. Nothing is hard-coded.
- *
- * Required env:
- *   WHATSAPP_CLOUD_TOKEN      permanent access token (secret)
- *   WHATSAPP_PHONE_NUMBER_ID  sender phone number id (not a secret, but config)
- * Optional:
- *   WHATSAPP_API_VERSION      default "v21.0"
+ * WhatsApp has no free send API — the Cloud API needs a Meta Business account,
+ * a paid/persistent token and a sender phone-number id. Boom Shorts uses the
+ * free click-to-chat flow instead: the customer taps "Send on WhatsApp" on the
+ * order page and their own WhatsApp opens with the full order details already
+ * written out, addressed to the business number from Site Settings. No paid
+ * service, no token, nothing to configure.
  */
-export function whatsappCloudConfigured(): boolean {
-  return Boolean(process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
-}
-
-export async function sendWhatsAppText(toPhone: string, body: string): Promise<boolean> {
-  if (!whatsappCloudConfigured()) return false;
-
-  const digits = normalizePhone(toPhone);
-  if (!digits) return false;
-
-  const version = process.env.WHATSAPP_API_VERSION || "v21.0";
-  const url = `https://graph.facebook.com/${version}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.WHATSAPP_CLOUD_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: digits,
-      type: "text",
-      text: { body, preview_url: false },
-    }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    console.error(`[whatsapp] send failed (${res.status}):`, detail.slice(0, 300));
-    return false;
-  }
-  return true;
-}

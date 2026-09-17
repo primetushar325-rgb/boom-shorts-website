@@ -45,6 +45,20 @@ const RULES = [
     name: "Supabase secret key (service_role / JWT)",
     test: (s) => /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/.test(s),
   },
+  {
+    name: "Supabase secret key (sb_secret_)",
+    test: (s) => {
+      const m = s.match(/sb_secret_([A-Za-z0-9_-]+)/);
+      return Boolean(m) && !PLACEHOLDER.test(m[1]);
+    },
+  },
+  {
+    name: "Vercel access token (vcp_)",
+    test: (s) => {
+      const m = s.match(/vcp_([A-Za-z0-9]+)/);
+      return Boolean(m) && !PLACEHOLDER.test(m[1]);
+    },
+  },
   { name: "OpenAI-style key", test: (s) => /sk-[A-Za-z0-9]{20,}/.test(s) },
   { name: "AWS access key id", test: (s) => /AKIA[0-9A-Z]{16}/.test(s) },
   {

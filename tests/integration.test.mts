@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 // `globalThis.AsyncLocalStorage` is installed by tests/setup-next-als.mts,
 // which the npm script preloads with `tsx --import` so it runs before any
 // hoisted next/dist import captures the (missing) global.
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -734,6 +734,59 @@ await test("an order still succeeds when the Cloud API is configured but unreach
     })) {
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nmass assignment — no admin route spreads the raw body");
+// ---------------------------------------------------------------------------
+
+await test("every admin PATCH route uses an allowlist, never { ...body }", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const apiDir = join(process.cwd(), "src/app/api");
+
+  const routeFiles: string[] = [];
+  for (const group of readdirSync(apiDir)) {
+    const groupPath = join(apiDir, group);
+    const direct = join(groupPath, "route.ts");
+    if (readdirSync(apiDir).includes(group) && existsSync(direct)) routeFiles.push(direct);
+    for (const sub of readdirSync(groupPath)) {
+      const nested = join(groupPath, sub, "route.ts");
+      if (existsSync(nested)) routeFiles.push(nested);
+    }
+  }
+  assert.ok(routeFiles.length > 20, `expected to scan many routes, found ${routeFiles.length}`);
+
+  // A spread of the request body straight into a patch/values object lets a
+  // client write any column. It must not appear in executable code.
+  const offenders: string[] = [];
+  for (const file of routeFiles) {
+    const src = rf(file, "utf8");
+    // Strip block and line comments so the explanatory notes don't count.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    if (/\.\.\.(body|data|input)\b/.test(code)) offenders.push(file.replace(apiDir, "api"));
+  }
+  assert.deepEqual(offenders, [], `raw body spread found in: ${offenders.join(", ")}`);
+});
+
+await test("content-route allowlists exclude id and createdAt", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const routes = [
+    "banners", "coupons", "faqs", "free-video-cards",
+    "gallery", "notices", "proof-slides", "sections", "testimonials",
+  ];
+  for (const r of routes) {
+    const src = rf(
+      join(process.cwd(), `src/app/api/${r}/[id]/route.ts`),
+      "utf8",
+    );
+    assert.ok(src.includes("const SPEC: FieldSpec"), `${r} must declare a SPEC allowlist`);
+    const spec = src.split("const SPEC: FieldSpec = {")[1].split("};")[0];
+    const keys = [...spec.matchAll(/^\s*([a-zA-Z]+):/gm)].map((m) => m[1]);
+    assert.ok(keys.length > 0, `${r} allowlist must not be empty`);
+    for (const forbidden of ["id", "createdAt"]) {
+      assert.ok(!keys.includes(forbidden), `${r} must not allowlist ${forbidden}`);
     }
   }
 });

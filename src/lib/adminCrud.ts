@@ -41,6 +41,17 @@ export const asDateOrNull = (): Coercer => (v) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+/** Passes through JSON-compatible values for jsonb columns; rejects the rest. */
+export const asJson =
+  (fallback: unknown = null): Coercer =>
+  (v) => {
+    if (v === null || v === undefined) return fallback;
+    const t = typeof v;
+    if (t === "string" || t === "number" || t === "boolean") return v;
+    if (Array.isArray(v) || t === "object") return v;
+    return fallback;
+  };
+
 export const asStringArray = (): Coercer => (v) =>
   Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean).slice(0, 20) : [];
 

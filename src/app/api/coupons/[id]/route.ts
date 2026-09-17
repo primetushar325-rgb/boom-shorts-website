@@ -1,27 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
 import { coupons } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { isAdminAuthed } from "@/lib/requireAdmin";
+import {
+  adminDelete,
+  adminPatch,
+  asBool,
+  asDateOrNull,
+  asInt,
+  asNumeric,
+  asText,
+  buildPatch,
+  type FieldSpec,
+} from "@/lib/adminCrud";
+
+/**
+ * Explicit allowlist.
+ *
+ * The previous implementation did `const patch = { ...body }`, which let a
+ * request write any column on the table. Every field the admin editor sends is
+ * listed here; anything else is dropped by buildPatch().
+ */
+const SPEC: FieldSpec = {
+  code: asText(40),
+  discountPercent: asInt(0),
+  discountAmount: asNumeric(),
+  minOrderAmount: asNumeric(),
+  usageLimit: asInt(0),
+  active: asBool(true),
+  expiresAt: asDateOrNull(),
+};
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await isAdminAuthed();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const body = await req.json().catch(() => ({}));
-  const patch: Record<string, unknown> = { ...body };
-  delete patch.id;
-  if (patch.code) patch.code = String(patch.code).toUpperCase().trim();
-  if ("expiresAt" in patch) patch.expiresAt = patch.expiresAt ? new Date(patch.expiresAt as string) : null;
-  const [updated] = await db.update(coupons).set(patch).where(eq(coupons.id, Number(id))).returning();
-  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ coupon: updated });
+  const rowId = Number(id);
+  if (!Number.isFinite(rowId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  return adminPatch(coupons, rowId, buildPatch(body, SPEC), "coupon");
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await isAdminAuthed();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  await db.delete(coupons).where(eq(coupons.id, Number(id)));
-  return NextResponse.json({ ok: true });
+  return adminDelete(coupons, Number(id));
 }

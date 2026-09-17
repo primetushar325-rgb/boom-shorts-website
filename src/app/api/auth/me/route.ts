@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthed } from "@/lib/requireAdmin";
+import { getAdminSession } from "@/lib/session";
 
 export async function GET() {
-  const authed = await isAdminAuthed();
-  return NextResponse.json({ authed });
+  const admin = await getAdminSession();
+  if (!admin) return NextResponse.json({ authed: false });
+  return NextResponse.json({
+    authed: true,
+    email: admin.email,
+    name: admin.name,
+    role: admin.role,
+    mustChangePassword: admin.mustChangePassword,
+  });
 }

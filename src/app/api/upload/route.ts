@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
-import crypto from "crypto";
-import path from "path";
+import { uploadScreenshot, validateImageFile } from "@/lib/storage";
+import { verifyUploadToken } from "@/lib/uploadToken";
+import { isAdminAuthed } from "@/lib/requireAdmin";
 
+/**
+ * POST /api/upload — payment screenshot (customer) or admin image.
+ *
+ * Authorisation: either a signed checkout upload token, or an admin session.
+ * This closes the previous hole where anyone could write to storage.
+ */
 export async function POST(req: NextRequest) {
+  const admin = await isAdminAuthed();
+  const token = req.headers.get("x-upload-token");
+
+  if (!admin && !verifyUploadToken(token)) {
+    return NextResponse.json(
+      { error: "Upload session expired. Please reload the checkout page and try again." },
+      { status: 401 },
+    );
+  }
+
   const formData = await req.formData().catch(() => null);
   if (!formData) return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
 
@@ -12,30 +28,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (file.size > 8 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (max 8MB)" }, { status: 400 });
-  }
-
-  const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
-  if (!allowed.includes(file.type)) {
-    return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
-  }
+  const problem = validateImageFile(file);
+  if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
   try {
-    const ext = path.extname(file.name) || ".jpg";
-    const filename = `uploads/${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
-
-    const blob = await put(filename, file, {
-      access: "public",
-      contentType: file.type,
+    const result = await uploadScreenshot(file);
+    return NextResponse.json({
+      // `path` is what gets stored in the database; `url` is display-only.
+      path: result.path,
+      url: result.url,
+      backend: result.backend,
     });
-
-    return NextResponse.json({ url: blob.url });
   } catch (err) {
-    console.error("Upload error:", err);
-    return NextResponse.json(
-      { error: "Upload failed. Please make sure Blob storage is connected on Vercel." },
-      { status: 500 }
-    );
+    const message = err instanceof Error ? err.message : "Upload failed";
+    console.error("[upload] failed:", message);
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

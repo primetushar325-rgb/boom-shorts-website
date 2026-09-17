@@ -15,6 +15,13 @@
       "when": 1785054422752,
       "tag": "0001_goofy_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789669343248,
+      "tag": "0002_boom_ecosystem",
+      "breakpoints": true
     }
   ]
 }

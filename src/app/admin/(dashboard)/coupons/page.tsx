@@ -24,7 +24,15 @@ export default function AdminCouponsPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/coupons");
+      const data = await res.json();
+      if (!cancelled) setCoupons(data.coupons || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function add() {

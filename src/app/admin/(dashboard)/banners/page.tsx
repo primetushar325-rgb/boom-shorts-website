@@ -26,7 +26,15 @@ export default function AdminBannersPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/banners");
+      const data = await res.json();
+      if (!cancelled) setBanners(data.banners || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleUpload(file: File) {

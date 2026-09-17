@@ -18,7 +18,15 @@ export default function AdminProofSlidesPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/proof-slides");
+      const data = await res.json();
+      if (!cancelled) setItems(data.proofSlides || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleUpload(file: File) {

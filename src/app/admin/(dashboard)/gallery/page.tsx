@@ -18,7 +18,15 @@ export default function AdminGalleryPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/gallery");
+      const data = await res.json();
+      if (!cancelled) setItems(data.gallery || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleUpload(file: File) {

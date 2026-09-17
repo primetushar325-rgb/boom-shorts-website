@@ -1,265 +1,426 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button, Card, Field, PageHeader, TextArea, TextInput, Toggle } from "@/components/admin/ui";
-import { taka } from "@/lib/format";
+import { useCallback, useEffect, useState } from "react";
 
 type Pkg = {
   id: number;
-  category: string;
   name: string;
+  category: string;
   description: string;
+  shortDescription: string;
+  durationLabel: string;
+  videoQuantity: number;
+  youtubeDemoUrl: string;
   oldPrice: string | null;
   newPrice: string;
-  badge: string;
-  buttonText: string;
-  icon: string;
+  discountPercent: number;
+  discountAmount: string;
+  isBestSeller: boolean;
   visible: boolean;
-  recentlyAdded: boolean;
+  available: boolean;
   sortOrder: number;
+  features: string[];
 };
 
-const emptyForm = {
-  category: "boom",
+const EMPTY = {
   name: "",
   description: "",
+  shortDescription: "",
+  durationLabel: "",
+  videoQuantity: 0,
+  youtubeDemoUrl: "",
   oldPrice: "",
   newPrice: "",
-  badge: "none",
-  buttonText: "Order Now",
-  icon: "🎬",
+  discountPercent: 0,
+  discountAmount: "",
+  isBestSeller: false,
   visible: true,
-  recentlyAdded: false,
-  sortOrder: 0,
+  available: true,
+  features: [] as string[],
 };
 
 export default function AdminPackagesPage() {
-  const [packages, setPackages] = useState<Pkg[]>([]);
-  const [tab, setTab] = useState<"boom" | "service">("boom");
-  const [form, setForm] = useState<typeof emptyForm>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [list, setList] = useState<Pkg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Pkg | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY });
+  const [featureDraft, setFeatureDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/packages");
+  const buildUrl = useCallback(() => "/api/packages?all=1", []);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/packages?all=1");
     const data = await res.json();
-    setPackages(data.packages || []);
-  }
-
-  useEffect(() => {
-    load();
+    setList(data.packages ?? []);
+    setLoading(false);
   }, []);
 
-  function startEdit(p: Pkg) {
-    setEditingId(p.id);
-    setForm({
-      category: p.category,
-      name: p.name,
-      description: p.description,
-      oldPrice: p.oldPrice || "",
-      newPrice: p.newPrice,
-      badge: p.badge,
-      buttonText: p.buttonText,
-      icon: p.icon,
-      visible: p.visible,
-      recentlyAdded: p.recentlyAdded,
-      sortOrder: p.sortOrder,
-    });
+  useEffect(() => {
+    // Fetch inside the effect body: the rule rejects setState called
+    // synchronously from an effect, and `load()` does that for its spinner.
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(buildUrl());
+      const d = res.ok ? await res.json() : null;
+      if (cancelled) return;
+      setList(d?.packages ?? []);
+
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [buildUrl, load]);
+
+  function openCreate() {
+    setEditing(null);
+    setForm({ ...EMPTY });
+    setCreating(true);
+    setMessage("");
   }
 
-  function resetForm() {
-    setEditingId(null);
-    setForm({ ...emptyForm, category: tab });
+  function openEdit(pkg: Pkg) {
+    setCreating(false);
+    setEditing(pkg);
+    setForm({
+      name: pkg.name,
+      description: pkg.description,
+      shortDescription: pkg.shortDescription,
+      durationLabel: pkg.durationLabel,
+      videoQuantity: pkg.videoQuantity,
+      youtubeDemoUrl: pkg.youtubeDemoUrl,
+      oldPrice: pkg.oldPrice ?? "",
+      newPrice: pkg.newPrice,
+      discountPercent: pkg.discountPercent,
+      discountAmount: pkg.discountAmount,
+      isBestSeller: pkg.isBestSeller,
+      visible: pkg.visible,
+      available: pkg.available,
+      features: [...pkg.features],
+    });
+    setMessage("");
+  }
+
+  function set<K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function addFeature() {
+    const label = featureDraft.trim();
+    if (!label || form.features.length >= 12) return;
+    set("features", [...form.features, label]);
+    setFeatureDraft("");
   }
 
   async function save() {
+    if (!form.name.trim()) return setMessage("Package name is required.");
+    if (!form.newPrice || Number(form.newPrice) <= 0) return setMessage("A price greater than 0 is required.");
+
     setSaving(true);
-    const payload = {
-      ...form,
-      oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
-      newPrice: Number(form.newPrice || 0),
-    };
+    setMessage("");
     try {
-      if (editingId) {
-        await fetch(`/api/packages/${editingId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/packages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-      resetForm();
+      const payload = {
+        ...form,
+        videoQuantity: Number(form.videoQuantity) || 0,
+        discountPercent: Number(form.discountPercent) || 0,
+      };
+      const res = await fetch(editing ? `/api/packages/${editing.id}` : "/api/packages", {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      setMessage("✓ Saved. The customer website reflects this immediately.");
+      setEditing(null);
+      setCreating(false);
       await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(id: number) {
-    if (!confirm("Delete this package?")) return;
-    await fetch(`/api/packages/${id}`, { method: "DELETE" });
-    await load();
-  }
-
-  async function toggleVisible(p: Pkg) {
-    await fetch(`/api/packages/${p.id}`, {
+  async function quickToggle(pkg: Pkg, key: "visible" | "available" | "isBestSeller") {
+    const next = !pkg[key];
+    setList((l) => l.map((p) => (p.id === pkg.id ? { ...p, [key]: next } : p)));
+    const res = await fetch(`/api/packages/${pkg.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visible: !p.visible }),
+      body: JSON.stringify({ [key]: next }),
     });
+    if (!res.ok) {
+      setList((l) => l.map((p) => (p.id === pkg.id ? { ...p, [key]: pkg[key] } : p)));
+      setMessage("Could not save that change.");
+    }
+  }
+
+  async function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= list.length) return;
+    const next = [...list];
+    [next[index], next[target]] = [next[target], next[index]];
+    setList(next);
+    await fetch("/api/packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: next.map((p) => p.id) }),
+    });
+  }
+
+  async function archive(pkg: Pkg) {
+    if (!confirm(`Archive "${pkg.name}"? It will disappear from the website but orders are kept.`)) return;
+    await fetch(`/api/packages/${pkg.id}`, { method: "DELETE" });
     await load();
   }
 
-  const filtered = packages.filter((p) => p.category === tab);
+  const editorOpen = creating || editing !== null;
 
   return (
     <div>
-      <PageHeader title="Packages" subtitle="Manage Boom Shorts & Other Services packages." />
-
-      <div className="mb-6 flex gap-2">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-extrabold text-white">Packages</h1>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Order here = order on the website. Use ▲▼ to reorder.
+          </p>
+        </div>
         <button
-          onClick={() => {
-            setTab("boom");
-            resetForm();
-          }}
-          className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === "boom" ? "bg-amber-500 text-white" : "bg-white/5 text-slate-300"}`}
+          type="button"
+          onClick={openCreate}
+          className="shrink-0 rounded-xl bg-bs-primary px-4 py-2.5 text-sm font-bold text-white"
         >
-          🎬 Boom Shorts
-        </button>
-        <button
-          onClick={() => {
-            setTab("service");
-            resetForm();
-          }}
-          className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === "service" ? "bg-amber-500 text-white" : "bg-white/5 text-slate-300"}`}
-        >
-          🛠️ Other Services
+          + New
         </button>
       </div>
 
-      <Card className="mb-6">
-        <p className="mb-4 font-bold text-white">{editingId ? "Edit Package" : "Add New Package"}</p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name">
-            <TextInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </Field>
-          <Field label="Icon (emoji)">
-            <TextInput value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
-          </Field>
-          <Field label="Old Price (৳) — optional">
-            <TextInput
-              type="number"
-              value={form.oldPrice}
-              onChange={(e) => setForm({ ...form, oldPrice: e.target.value })}
-            />
-          </Field>
-          <Field label="New Price (৳)">
-            <TextInput
-              type="number"
-              value={form.newPrice}
-              onChange={(e) => setForm({ ...form, newPrice: e.target.value })}
-            />
-          </Field>
-          <Field label="Badge">
-            <select
-              value={form.badge}
-              onChange={(e) => setForm({ ...form, badge: e.target.value })}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-            >
-              <option value="none">None</option>
-              <option value="popular">⭐ Popular</option>
-              <option value="bestseller">🔥 Best Seller</option>
-              <option value="new">✨ New</option>
-            </select>
-          </Field>
-          <Field label="Button Text">
-            <TextInput value={form.buttonText} onChange={(e) => setForm({ ...form, buttonText: e.target.value })} />
-          </Field>
-          <Field label="Sort Order">
-            <TextInput
-              type="number"
-              value={form.sortOrder}
-              onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Category">
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-            >
-              <option value="boom">Boom Shorts</option>
-              <option value="service">Other Services</option>
-            </select>
-          </Field>
-          <Field label="Description">
-            <TextArea
-              rows={3}
-              className="sm:col-span-2"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </Field>
-        </div>
+      {message ? (
+        <p className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-semibold text-slate-200">
+          {message}
+        </p>
+      ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center gap-6">
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            <Toggle checked={form.visible} onChange={(v) => setForm({ ...form, visible: v })} /> Visible
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            <Toggle checked={form.recentlyAdded} onChange={(v) => setForm({ ...form, recentlyAdded: v })} /> Recently
-            Added Badge
-          </label>
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bs-skeleton h-20 rounded-2xl" />
+          ))}
         </div>
-
-        <div className="mt-5 flex gap-3">
-          <Button onClick={save} disabled={saving || !form.name || !form.newPrice}>
-            {saving ? "Saving..." : editingId ? "Update Package" : "Add Package"}
-          </Button>
-          {editingId ? (
-            <Button variant="ghost" onClick={resetForm}>
-              Cancel
-            </Button>
-          ) : null}
+      ) : list.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 bg-[#0e1628] px-4 py-12 text-center">
+          <p className="text-2xl">📦</p>
+          <p className="mt-2 text-sm font-bold text-white">No packages yet</p>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="mt-4 rounded-xl bg-bs-primary px-4 py-2 text-xs font-bold text-white"
+          >
+            Create your first package
+          </button>
         </div>
-      </Card>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((pkg, index) => (
+            <li key={pkg.id} className="rounded-2xl border border-white/10 bg-[#0e1628] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{pkg.name}</p>
+                  <p className="text-[11px] text-slate-400">
+                    ৳{pkg.newPrice}
+                    {pkg.durationLabel ? ` · ${pkg.durationLabel}` : ""}
+                    {pkg.videoQuantity ? ` · ${pkg.videoQuantity} videos` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => move(index, -1)}
+                    disabled={index === 0}
+                    aria-label="Move up"
+                    className="rounded-lg border border-white/10 px-2 text-xs text-slate-300 disabled:opacity-30"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(index, 1)}
+                    disabled={index === list.length - 1}
+                    aria-label="Move down"
+                    className="rounded-lg border border-white/10 px-2 text-xs text-slate-300 disabled:opacity-30"
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((p) => (
-          <Card key={p.id} className={!p.visible ? "opacity-50" : ""}>
-            <div className="flex items-start justify-between">
-              <div className="text-3xl">{p.icon}</div>
-              <label className="flex items-center gap-2 text-xs text-slate-400">
-                <Toggle checked={p.visible} onChange={() => toggleVisible(p)} />
-              </label>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <ToggleChip on={pkg.visible} label="Homepage" onClick={() => quickToggle(pkg, "visible")} />
+                <ToggleChip on={pkg.available} label="Available" onClick={() => quickToggle(pkg, "available")} />
+                <ToggleChip on={pkg.isBestSeller} label="Best Seller" onClick={() => quickToggle(pkg, "isBestSeller")} />
+                {pkg.youtubeDemoUrl ? (
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                    🎬 Demo
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEdit(pkg)}
+                  className="flex-1 rounded-xl bg-bs-primary px-3 py-2 text-xs font-bold text-white"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => archive(pkg)}
+                  className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-bold text-red-300"
+                >
+                  Archive
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ---------- editor ---------- */}
+      {editorOpen ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4" onClick={(e) => { if (e.target === e.currentTarget) { setCreating(false); setEditing(null); } }}>
+          <div className="mx-auto max-w-lg rounded-3xl border border-white/10 bg-[#0e1628] p-5">
+            <h2 className="text-base font-extrabold text-white">
+              {editing ? "Edit Package" : "New Package"}
+            </h2>
+
+            <div className="mt-4 space-y-3">
+              <AdminField label="Package Name *">
+                <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
+              </AdminField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <AdminField label="Duration Label">
+                  <input value={form.durationLabel} onChange={(e) => set("durationLabel", e.target.value)} placeholder="7 Days" className={inputCls} />
+                </AdminField>
+                <AdminField label="Video Quantity">
+                  <input type="number" min={0} value={form.videoQuantity} onChange={(e) => set("videoQuantity", Number(e.target.value))} className={inputCls} />
+                </AdminField>
+              </div>
+
+              <AdminField label="Short Description (card)">
+                <input value={form.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} className={inputCls} />
+              </AdminField>
+
+              <AdminField label="Full Description">
+                <textarea rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} className={inputCls} />
+              </AdminField>
+
+              <AdminField label="YouTube Demo URL">
+                <input value={form.youtubeDemoUrl} onChange={(e) => set("youtubeDemoUrl", e.target.value)} placeholder="https://youtu.be/…" className={inputCls} />
+              </AdminField>
+
+              <div className="grid grid-cols-3 gap-3">
+                <AdminField label="Price *">
+                  <input type="number" min={0} value={form.newPrice} onChange={(e) => set("newPrice", e.target.value)} className={inputCls} />
+                </AdminField>
+                <AdminField label="Discount %">
+                  <input type="number" min={0} max={100} value={form.discountPercent} onChange={(e) => set("discountPercent", Number(e.target.value))} className={inputCls} />
+                </AdminField>
+                <AdminField label="Discount ৳">
+                  <input type="number" min={0} value={form.discountAmount} onChange={(e) => set("discountAmount", e.target.value)} className={inputCls} />
+                </AdminField>
+              </div>
+
+              <AdminField label="Features (3–5 recommended)">
+                <div className="flex gap-2">
+                  <input
+                    value={featureDraft}
+                    onChange={(e) => setFeatureDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFeature(); } }}
+                    placeholder="High Quality"
+                    className={inputCls}
+                  />
+                  <button type="button" onClick={addFeature} className="shrink-0 rounded-xl border border-white/10 px-3 text-xs font-bold text-white">
+                    Add
+                  </button>
+                </div>
+                {form.features.length ? (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {form.features.map((f, i) => (
+                      <li key={`${f}-${i}`} className="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
+                        ✓ {f}
+                        <button
+                          type="button"
+                          onClick={() => set("features", form.features.filter((_, idx) => idx !== i))}
+                          aria-label={`Remove ${f}`}
+                          className="text-slate-500 hover:text-red-300"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </AdminField>
+
+              <div className="grid grid-cols-3 gap-2">
+                <ToggleChip on={form.available} label="Available" onClick={() => set("available", !form.available)} />
+                <ToggleChip on={form.visible} label="Homepage" onClick={() => set("visible", !form.visible)} />
+                <ToggleChip on={form.isBestSeller} label="Best Seller" onClick={() => set("isBestSeller", !form.isBestSeller)} />
+              </div>
             </div>
-            <p className="mt-3 font-bold text-white">{p.name}</p>
-            <div className="mt-1 flex items-center gap-2">
-              {p.oldPrice ? <span className="text-xs text-slate-500 line-through">{taka(p.oldPrice)}</span> : null}
-              <span className="font-extrabold text-amber-300">{taka(p.newPrice)}</span>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="flex-1 rounded-xl bg-bs-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {saving ? "Saving…" : "Save Package"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCreating(false); setEditing(null); }}
+                className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300"
+              >
+                Cancel
+              </button>
             </div>
-            {p.badge !== "none" ? (
-              <span className="mt-2 inline-block rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-slate-300">
-                {p.badge}
-              </span>
-            ) : null}
-            <div className="mt-4 flex gap-2">
-              <Button variant="ghost" onClick={() => startEdit(p)}>
-                Edit
-              </Button>
-              <Button variant="danger" onClick={() => remove(p.id)}>
-                Delete
-              </Button>
-            </div>
-          </Card>
-        ))}
-        {filtered.length === 0 ? <p className="text-sm text-slate-500">No packages yet.</p> : null}
-      </div>
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+const inputCls =
+  "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition focus:border-bs-primary";
+
+function AdminField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ToggleChip({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+        on ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-slate-500"
+      }`}
+    >
+      {on ? "●" : "○"} {label}
+    </button>
   );
 }

@@ -19,7 +19,15 @@ export default function AdminFreeVideoPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/free-video-cards");
+      const data = await res.json();
+      if (!cancelled) setItems(data.cards || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleUpload(file: File) {

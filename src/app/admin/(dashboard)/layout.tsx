@@ -1,22 +1,19 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { isAdminAuthed } from "@/lib/requireAdmin";
-import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminMobileNav from "@/components/admin/AdminMobileNav";
+import { getAdminSession } from "@/lib/session";
+import AdminShell from "@/components/admin/AdminShell";
 
+/**
+ * Admin App gate.
+ *
+ * The middleware only checks cookie *presence* (it runs on the edge and must
+ * not touch the database). This layout performs the real verification against
+ * the sessions table, and every API route re-checks independently — so
+ * authorisation never depends on the UI hiding something.
+ */
 export default async function AdminDashboardLayout({ children }: { children: ReactNode }) {
-  const authed = await isAdminAuthed();
-  if (!authed) redirect("/admin/login");
+  const admin = await getAdminSession();
+  if (!admin) redirect("/admin/login");
 
-  return (
-    <div className="flex min-h-screen bg-slate-950 text-white">
-      <AdminSidebar />
-      <div className="flex-1">
-        <AdminMobileNav />
-        <div className="px-5 py-8 sm:px-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
+  return <AdminShell adminEmail={admin.email}>{children}</AdminShell>;
 }

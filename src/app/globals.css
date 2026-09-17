@@ -1,121 +1,124 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   BOOM SHORTS — shared design tokens
+   Customer site is light/premium; the Admin App overrides --bs-* in its own
+   root layout so the two apps never fight over the same variables.
+   ========================================================================= */
+
+@theme {
+  --color-bs-bg: #f6f8fb;
+  --color-bs-surface: #ffffff;
+  --color-bs-ink: #0f172a;        /* dark navy headings */
+  --color-bs-muted: #64748b;
+  --color-bs-line: #e2e8f0;
+  --color-bs-primary: #2563eb;    /* blue */
+  --color-bs-primary-dark: #1d4ed8;
+  --color-bs-primary-soft: #eff6ff;
+  --color-bs-success: #16a34a;    /* green — Available */
+  --color-bs-success-soft: #dcfce7;
+  --color-bs-gold: #d97706;       /* gold/orange — Best Seller */
+  --color-bs-gold-soft: #fef3c7;
+  --color-bs-danger: #dc2626;     /* red — discount */
+  --color-bs-danger-soft: #fee2e2;
+
+  --radius-bs: 1.25rem;
+
+  --shadow-bs-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --shadow-bs-lift: 0 2px 4px rgba(15, 23, 42, 0.05), 0 18px 40px -18px rgba(15, 23, 42, 0.22);
+
+  --animate-bs-fade-up: bs-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bs-fade-in: bs-fade-in 0.4s ease-out both;
+  --animate-bs-marquee: bs-marquee 38s linear infinite;
+  --animate-bs-pulse-ring: bs-pulse-ring 2.4s ease-out infinite;
+}
+
+@keyframes bs-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes bs-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bs-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes bs-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.45); }
+  70%  { box-shadow: 0 0 0 16px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+@keyframes bs-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: #020617;
+  background-color: var(--color-bs-bg);
+  color: var(--color-bs-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans Bengali", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-@keyframes pulse-slow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 12px rgba(220, 38, 38, 0);
-  }
+/* Loading skeleton shimmer used by the package grid + admin lists. */
+.bs-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eef2f7;
+}
+.bs-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: bs-shimmer 1.4s ease-in-out infinite;
 }
 
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
+/* Safe-area aware bottom navigation. */
+.bs-safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
-@keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* 16:9 responsive video frame — works for YouTube and Google Drive embeds. */
+.bs-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.bs-video-frame > iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
-.animate-fade-in {
-  animation: fade-in 0.8s ease-out both;
-}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #eef2f7; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.8s ease-out both;
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 2.4s ease-in-out infinite;
-}
-
-.animate-marquee {
-  animation: marquee 22s linear infinite;
-}
-
-.animate-spin-slow {
-  animation: spin-slow 6s linear infinite;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #020617;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(#f59e0b, #fde047);
-  border-radius: 999px;
-}
-
-@keyframes gold-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 8px 2px rgba(251, 191, 36, 0.55),
-      0 0 20px 6px rgba(245, 158, 11, 0.35);
-  }
-  50% {
-    box-shadow:
-      0 0 14px 4px rgba(251, 191, 36, 0.8),
-      0 0 32px 10px rgba(245, 158, 11, 0.55);
-  }
-}
-
-.animate-gold-glow {
-  animation: gold-glow 2.6s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 2.2s ease-in-out infinite;
-}
+/* Legacy animation utility names kept so untouched components still render. */
+.animate-fade-in { animation: var(--animate-bs-fade-in); }
+.animate-fade-in-up { animation: var(--animate-bs-fade-up); }
+.animate-marquee { animation: var(--animate-bs-marquee); }
+.animate-pulse-slow { animation: var(--animate-bs-pulse-ring); }

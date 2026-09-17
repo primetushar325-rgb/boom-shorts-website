@@ -16,7 +16,15 @@ export default function AdminNoticesPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/notices");
+      const data = await res.json();
+      if (!cancelled) setNotices(data.notices || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function add() {

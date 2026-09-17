@@ -25,7 +25,15 @@ export default function AdminTestimonialsPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/testimonials");
+      const data = await res.json();
+      if (!cancelled) setItems(data.testimonials || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function add() {

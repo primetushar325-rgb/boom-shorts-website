@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Field, PageHeader, TextArea, TextInput, Toggle } from "@/components/admin/ui";
+import { useRouter } from "next/navigation";
 
-type SettingsData = {
+type Settings = {
   siteName: string;
   logoUrl: string;
-  demoVideoUrl: string;
-  boomVideoUrl: string;
-  serviceVideoUrl: string;
   heroBadgeText: string;
   heroTitle: string;
   heroSubtitle: string;
@@ -17,302 +14,202 @@ type SettingsData = {
   statSeoOptimized: string;
   whatsappNumber: string;
   whatsappLink: string;
-  messengerLink: string;
   facebookLink: string;
+  messengerLink: string;
   telegramLink: string;
   bkashNumber: string;
   nagadNumber: string;
   rocketNumber: string;
   qrCodeUrl: string;
   paymentNotice: string;
-  youtubeVideoUrl: string;
-  youtubeThumbnailUrl: string;
-  youtubeTitle: string;
   freeVideoLink: string;
-  offerEnabled: boolean;
-  offerText: string;
-  offerEndsAt: string | null;
+  demoVideoUrl: string;
+  youtubeVideoUrl: string;
+  youtubeTitle: string;
 };
 
-function toLocalInput(value: string | null) {
-  if (!value) return "";
-  const d = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+const TEXT_FIELDS: { key: keyof Settings; label: string; hint?: string }[] = [
+  { key: "siteName", label: "Business Name" },
+  { key: "logoUrl", label: "Logo URL", hint: "/logo.png or a full https URL" },
+  { key: "whatsappNumber", label: "WhatsApp Number", hint: "Used by the floating help button" },
+  { key: "bkashNumber", label: "bKash Number" },
+  { key: "nagadNumber", label: "Nagad Number" },
+  { key: "rocketNumber", label: "Rocket Number" },
+  { key: "qrCodeUrl", label: "Payment QR Code URL" },
+  { key: "paymentNotice", label: "Payment Notice" },
+  { key: "facebookLink", label: "Facebook Link" },
+  { key: "messengerLink", label: "Messenger Link" },
+  { key: "telegramLink", label: "Telegram Link" },
+  { key: "freeVideoLink", label: "Free Video Link" },
+  { key: "demoVideoUrl", label: "Demo Video URL" },
+  { key: "heroBadgeText", label: "Hero Badge" },
+  { key: "heroTitle", label: "Hero Title" },
+  { key: "statHappyClients", label: "Stat — Happy Clients" },
+  { key: "statCompletedOrders", label: "Stat — Completed Orders" },
+  { key: "statSeoOptimized", label: "Stat — SEO Optimized" },
+];
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<SettingsData | null>(null);
+  const router = useRouter();
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/settings?full=1");
-    const data = await res.json();
-    setSettings(data.settings);
-  }
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [pwMessage, setPwMessage] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
   useEffect(() => {
-    load();
+    fetch("/api/settings?full=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setSettings(d?.settings ?? null))
+      .finally(() => setLoading(false));
   }, []);
 
-  async function uploadQr(file: File) {
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    setUploading(false);
-    if (res.ok && settings) setSettings({ ...settings, qrCodeUrl: data.url });
-  }
-
-  async function uploadLogo(file: File) {
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    setUploading(false);
-    if (res.ok && settings) setSettings({ ...settings, logoUrl: data.url });
+  function set(key: keyof Settings, value: string) {
+    setSettings((s) => (s ? { ...s, [key]: value } : s));
   }
 
   async function save() {
     if (!settings) return;
     setSaving(true);
-    setSavedMsg("");
-    const payload: Record<string, unknown> = { ...settings };
-    if (newPassword.trim()) payload.newPassword = newPassword.trim();
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        setSavedMsg("✅ Settings saved successfully!");
-        setNewPassword("");
-      }
-    } finally {
-      setSaving(false);
-      setTimeout(() => setSavedMsg(""), 3000);
+    setMessage("");
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setMessage(data.error || "Could not save settings.");
+      return;
     }
+    setMessage("✓ Settings saved. The website reflects this immediately.");
   }
 
-  if (!settings) return <p className="text-sm text-slate-500">Loading...</p>;
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwBusy(true);
+    setPwMessage("");
+    const res = await fetch("/api/admin/password", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    setPwBusy(false);
+    if (!res.ok) {
+      setPwMessage(data.error || "Could not change the password.");
+      return;
+    }
+    setPwMessage("✓ Password changed. Please sign in again.");
+    setCurrentPassword("");
+    setNewPassword("");
+    setTimeout(() => router.push("/admin/login"), 1500);
+  }
 
-  const set = <K extends keyof SettingsData>(key: K, value: SettingsData[K]) =>
-    setSettings({ ...settings, [key]: value });
+  if (loading) {
+    return <div className="space-y-2">{[0,1,2,3].map((i) => <div key={i} className="bs-skeleton h-16 rounded-2xl" />)}</div>;
+  }
+  if (!settings) {
+    return <p className="text-sm text-slate-400">Could not load settings.</p>;
+  }
 
   return (
-    <div>
-      <PageHeader title="Website Settings" subtitle="Everything global — payments, socials, video & more." />
-
-      <div className="grid gap-6">
-        <Card>
-          <p className="mb-4 font-bold text-white">🏠 Site & Hero</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Site Name">
-              <TextInput value={settings.siteName} onChange={(e) => set("siteName", e.target.value)} />
-            </Field>
-            <Field label="Hero Badge Text">
-              <TextInput value={settings.heroBadgeText} onChange={(e) => set("heroBadgeText", e.target.value)} />
-            </Field>
-            <Field label="Hero Title">
-              <TextInput className="sm:col-span-2" value={settings.heroTitle} onChange={(e) => set("heroTitle", e.target.value)} />
-            </Field>
-            <Field label="Hero Subtitle">
-              <TextArea
-                rows={2}
-                className="sm:col-span-2"
-                value={settings.heroSubtitle}
-                onChange={(e) => set("heroSubtitle", e.target.value)}
-              />
-            </Field>
-            <Field label="Stat: Happy Clients">
-              <TextInput value={settings.statHappyClients} onChange={(e) => set("statHappyClients", e.target.value)} />
-            </Field>
-            <Field label="Stat: Completed Orders">
-              <TextInput
-                value={settings.statCompletedOrders}
-                onChange={(e) => set("statCompletedOrders", e.target.value)}
-              />
-            </Field>
-            <Field label="Stat: SEO Optimized">
-              <TextInput value={settings.statSeoOptimized} onChange={(e) => set("statSeoOptimized", e.target.value)} />
-            </Field>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🏆 Logo</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Logo Image URL">
-              <TextInput value={settings.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} />
-            </Field>
-            <Field label="Or Upload Logo">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
-                className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-3 file:py-1.5 file:text-slate-950"
-              />
-            </Field>
-            {settings.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={settings.logoUrl} alt="Logo preview" className="h-16 w-16 rounded-full object-cover" />
-            ) : null}
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">▶ Demo Button Video</p>
-          <Field label="Demo Video Link (Google Drive share link or YouTube URL)">
-            <TextInput value={settings.demoVideoUrl} onChange={(e) => set("demoVideoUrl", e.target.value)} />
-          </Field>
-          <p className="mt-2 text-xs text-slate-500">Shown when a visitor taps the &quot;Demo&quot; button at the top of the homepage.</p>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🎬 Section Auto-play Videos</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Boom Shorts Packages — Video URL (YouTube)">
-              <TextInput value={settings.boomVideoUrl} onChange={(e) => set("boomVideoUrl", e.target.value)} />
-            </Field>
-            <Field label="Other Services — Video URL (YouTube)">
-              <TextInput value={settings.serviceVideoUrl} onChange={(e) => set("serviceVideoUrl", e.target.value)} />
-            </Field>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            These videos auto-play (muted) when a visitor scrolls to that section, and pause when they scroll away.
-          </p>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🔥 Offer Countdown Timer</p>
-          <label className="mb-4 flex items-center gap-2 text-sm text-slate-300">
-            <Toggle checked={settings.offerEnabled} onChange={(v) => set("offerEnabled", v)} /> Enable countdown on
-            homepage
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Offer Text">
-              <TextInput value={settings.offerText} onChange={(e) => set("offerText", e.target.value)} />
-            </Field>
-            <Field label="Ends At">
-              <TextInput
-                type="datetime-local"
-                value={toLocalInput(settings.offerEndsAt)}
-                onChange={(e) => set("offerEndsAt", e.target.value ? new Date(e.target.value).toISOString() : null)}
-              />
-            </Field>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🎬 Featured YouTube Video</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Video Title">
-              <TextInput value={settings.youtubeTitle} onChange={(e) => set("youtubeTitle", e.target.value)} />
-            </Field>
-            <Field label="YouTube Video URL">
-              <TextInput value={settings.youtubeVideoUrl} onChange={(e) => set("youtubeVideoUrl", e.target.value)} />
-            </Field>
-            <Field label="Custom Thumbnail URL (optional)">
-              <TextInput
-                className="sm:col-span-2"
-                value={settings.youtubeThumbnailUrl}
-                onChange={(e) => set("youtubeThumbnailUrl", e.target.value)}
-              />
-            </Field>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🎁 Free Video Button</p>
-          <Field label="Free Video Link (YouTube URL or external link)">
-            <TextInput value={settings.freeVideoLink} onChange={(e) => set("freeVideoLink", e.target.value)} />
-          </Field>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🔗 Social & Contact Links</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="WhatsApp Number (digits only, with country code)">
-              <TextInput value={settings.whatsappNumber} onChange={(e) => set("whatsappNumber", e.target.value)} />
-            </Field>
-            <Field label="WhatsApp Link">
-              <TextInput value={settings.whatsappLink} onChange={(e) => set("whatsappLink", e.target.value)} />
-            </Field>
-            <Field label="Messenger Link">
-              <TextInput value={settings.messengerLink} onChange={(e) => set("messengerLink", e.target.value)} />
-            </Field>
-            <Field label="Facebook Page Link">
-              <TextInput value={settings.facebookLink} onChange={(e) => set("facebookLink", e.target.value)} />
-            </Field>
-            <Field label="Telegram Link (future)">
-              <TextInput value={settings.telegramLink} onChange={(e) => set("telegramLink", e.target.value)} />
-            </Field>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">💳 Payment Settings</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="bKash Number">
-              <TextInput value={settings.bkashNumber} onChange={(e) => set("bkashNumber", e.target.value)} />
-            </Field>
-            <Field label="Nagad Number">
-              <TextInput value={settings.nagadNumber} onChange={(e) => set("nagadNumber", e.target.value)} />
-            </Field>
-            <Field label="Rocket Number">
-              <TextInput value={settings.rocketNumber} onChange={(e) => set("rocketNumber", e.target.value)} />
-            </Field>
-            <Field label="QR Code Image URL">
-              <TextInput value={settings.qrCodeUrl} onChange={(e) => set("qrCodeUrl", e.target.value)} />
-            </Field>
-            <Field label="Or Upload QR Code">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files?.[0] && uploadQr(e.target.files[0])}
-                className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-3 file:py-1.5 file:text-white"
-              />
-            </Field>
-            {settings.qrCodeUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={settings.qrCodeUrl} alt="QR preview" className="h-24 w-24 rounded-lg object-cover" />
-            ) : null}
-            <Field label="Payment Notice">
-              <TextArea
-                rows={2}
-                className="sm:col-span-2"
-                value={settings.paymentNotice}
-                onChange={(e) => set("paymentNotice", e.target.value)}
-              />
-            </Field>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="mb-4 font-bold text-white">🔐 Admin Password</p>
-          <Field label="New Password (leave blank to keep current)">
-            <TextInput
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter a new password"
-            />
-          </Field>
-        </Card>
-
-        <div className="flex items-center gap-4">
-          <Button onClick={save} disabled={saving || uploading}>
-            {saving ? "Saving..." : "💾 Save All Settings"}
-          </Button>
-          {savedMsg ? <p className="text-sm font-semibold text-emerald-400">{savedMsg}</p> : null}
-        </div>
+    <div className="max-w-2xl">
+      <div className="mb-4">
+        <h1 className="text-xl font-extrabold text-white">Settings</h1>
+        <p className="mt-0.5 text-xs text-slate-400">
+          Site-wide values. Nothing secret belongs here — use deployment environment variables.
+        </p>
       </div>
+
+      {message ? (
+        <p className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-semibold text-slate-200">
+          {message}
+        </p>
+      ) : null}
+
+      <div className="space-y-3">
+        {TEXT_FIELDS.map((f) => (
+          <label key={f.key} className="block">
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              {f.label}
+            </span>
+            <input
+              value={String(settings[f.key] ?? "")}
+              onChange={(e) => set(f.key, e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-bs-primary"
+            />
+            {f.hint ? <span className="mt-1 block text-[10px] text-slate-500">{f.hint}</span> : null}
+          </label>
+        ))}
+
+        <label className="block">
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+            Hero Subtitle
+          </span>
+          <textarea
+            rows={3}
+            value={settings.heroSubtitle}
+            onChange={(e) => set("heroSubtitle", e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-bs-primary"
+          />
+        </label>
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="mt-5 w-full rounded-xl bg-bs-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+      >
+        {saving ? "Saving…" : "Save Settings"}
+      </button>
+
+      <form onSubmit={changePassword} className="mt-8 rounded-2xl border border-white/10 bg-[#0e1628] p-4">
+        <h2 className="text-sm font-extrabold text-white">🔐 Change Admin Password</h2>
+        <p className="mt-1 text-[11px] text-slate-400">
+          At least 8 characters with one letter and one number. All sessions are signed out.
+        </p>
+
+        <div className="mt-3 space-y-3">
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            autoComplete="current-password"
+            required
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-bs-primary"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-bs-primary"
+          />
+        </div>
+
+        {pwMessage ? (
+          <p className="mt-3 text-xs font-semibold text-emerald-300">{pwMessage}</p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={pwBusy}
+          className="mt-3 w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+        >
+          {pwBusy ? "Updating…" : "Update Password"}
+        </button>
+      </form>
     </div>
   );
 }

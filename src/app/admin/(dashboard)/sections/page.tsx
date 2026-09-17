@@ -45,7 +45,15 @@ export default function AdminSectionsPage() {
   }
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/sections");
+      const data = await res.json();
+      if (!cancelled) setSections(data.sections || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function startEdit(s: Section) {

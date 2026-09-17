@@ -77,7 +77,9 @@ npm run dev
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm test` | End-to-end tests against in-process Postgres |
+| `npm test` | Service-layer tests against in-process Postgres |
+| `npm run test:integration` | Route handler + page rendering tests |
+| `npm run test:all` | Both suites |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run db:generate` | Generate a migration from `src/db/schema.ts` |
@@ -155,9 +157,16 @@ psql "$DATABASE_URL" -f drizzle/rls-policies.sql
 
 ## Testing
 
-`npm test` boots **PGlite** (real Postgres compiled to WASM), applies every
-committed migration, then exercises the shipped code paths — not a
-re-implementation. 24 assertions cover:
+Both suites boot **PGlite** (real Postgres compiled to WASM), apply every
+committed migration, then exercise the shipped code — never a re-implementation.
+
+```bash
+npm test                # service layer   (24 assertions)
+npm run test:integration # HTTP + pages   (16 assertions)
+npm run test:all
+```
+
+**`npm test`** — service layer:
 
 - all 19 tables created; no `DROP TABLE` in any migration
 - pricing (percentage vs. taka discount, clamping, strikethrough, percent-off)
@@ -167,6 +176,29 @@ re-implementation. 24 assertions cover:
   order_item / payment rows, duplicate transaction rejection, unavailable
   package rejection, field validation, coupon apply + expiry, order-number
   uniqueness
+
+**`npm run test:integration`** — the real Next.js handlers and page components:
+
+- `POST /api/orders`: 201 with an order number; **a client-supplied `price` is
+  ignored**; duplicate transaction → 409; unknown package → 404; missing fields → 400
+- `POST /api/coupons/validate`: active coupon applies, disabled/unknown rejected,
+  minimum order enforced
+- `HomePage()`: visible packages reach the cards, `visible=false` packages do not
+  render, and **only admin-approved reviews** appear
+- `PackageCard` rendered to markup: formatted `৳400`, strikethrough, Available
+  badge, feature ticks, CTA linking to `/checkout/…`
+- `CheckoutPage()`: package, final + strikethrough price, `Save 20%` pill, the
+  extracted YouTube id, and the configured payment numbers handed to the form
+- checkout for an unavailable package shows the notice and **no order button**
+
+> Admin-gated routes are not in the integration suite because `cookies()` throws
+> outside a Next request scope. They were verified over real HTTP instead:
+> unauthenticated `GET /api/orders`, `/api/dashboard`, `/api/customers` and
+> `/api/payments` all return **401**, and `/admin` redirects **307** to `/admin/login`.
+
+Two of these tests caught real defects during development: a transaction
+deadlock in `createOrder`, and a tree-walk that silently passed while seeing
+nothing.
 
 ---
 

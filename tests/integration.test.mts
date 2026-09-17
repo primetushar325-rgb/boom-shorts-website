@@ -1,0 +1,405 @@
+/**
+ * Integration tests: the REAL Next.js route handlers and the REAL server
+ * components, driven against an in-process Postgres (PGlite).
+ *
+ * e2e.test.mts covers the service layer. This file goes one level up and calls
+ * the actual exported HTTP handlers (`POST /api/orders`,
+ * `POST /api/coupons/validate`) and the actual page components, so the
+ * request-parsing, response shapes and data-loading paths are exercised too —
+ * not just the functions underneath them.
+ *
+ * Note: admin-gated routes are NOT covered here because `cookies()` throws
+ * outside a Next request scope. Those were verified over real HTTP instead
+ * (unauthenticated GET /api/orders|dashboard|customers|payments → 401).
+ *
+ * Run with: npm run test:integration
+ */
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { NextRequest } from "next/server";
+import * as schema from "../src/db/schema";
+
+let passed = 0;
+let failed = 0;
+
+async function test(name: string, fn: () => Promise<void> | void) {
+  try {
+    await fn();
+    passed++;
+    console.log(`  ✓ ${name}`);
+  } catch (err) {
+    failed++;
+    console.error(`  ✗ ${name}`);
+    console.error(`      ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Database: real migrations, then a realistic seed.
+// ---------------------------------------------------------------------------
+const client = new PGlite();
+const db = drizzle(client, { schema });
+(globalThis as { __boomShortsTestDb?: unknown }).__boomShortsTestDb = db;
+
+const journal = JSON.parse(
+  readFileSync(join(process.cwd(), "drizzle/meta/_journal.json"), "utf8"),
+) as { entries: { tag: string }[] };
+const files = readdirSync(join(process.cwd(), "drizzle")).filter((f) => f.endsWith(".sql"));
+
+for (const entry of journal.entries) {
+  const file = files.find((f) => f.startsWith(entry.tag));
+  if (!file) throw new Error(`missing migration for ${entry.tag}`);
+  for (const stmt of readFileSync(join(process.cwd(), "drizzle", file), "utf8").split(
+    "--> statement-breakpoint",
+  )) {
+    const t = stmt.trim();
+    if (t) await client.exec(t);
+  }
+}
+console.log(`Applied ${journal.entries.length} migrations\n`);
+
+// Import AFTER the seam exists so the modules bind to the test database.
+const ordersRoute = await import("../src/app/api/orders/route");
+const couponsRoute = await import("../src/app/api/coupons/validate/route");
+const HomePage = (await import("../src/app/(site)/page")).default;
+const PackageCard = (await import("../src/components/site/PackageCard")).default;
+const CheckoutForm = (await import("../src/app/(site)/checkout/[packageId]/CheckoutForm")).default;
+const CheckoutPage = (await import("../src/app/(site)/checkout/[packageId]/page")).default;
+
+function post(url: string, body: unknown): NextRequest {
+  return new NextRequest(`http://localhost:3000${url}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Flattens every string reachable in a React element tree so page output is
+ * assertable without a DOM.
+ *
+ * Two things this has to get right:
+ *  - Data often travels in *object props* (`<PackageCard pkg={…} />`,
+ *    `<Testimonials items={…} />`), not in `children`, so object props are
+ *    traversed too — otherwise the package names are invisible to the test.
+ *  - Adjacent text nodes are concatenated with no separator, matching how
+ *    React renders `Save {percentOff}%` to HTML ("Save 20%", not "Save | 20 | %").
+ */
+function collectText(node: unknown, out: string[] = [], seen = new Set<unknown>()): string[] {
+  if (node === null || node === undefined || typeof node === "boolean") return out;
+  if (typeof node === "string" || typeof node === "number") {
+    out.push(String(node));
+    return out;
+  }
+  if (typeof node !== "object") return out;
+  if (seen.has(node)) return out; // guard against cyclic structures
+  seen.add(node);
+
+  if (Array.isArray(node)) {
+    for (const child of node) collectText(child, out, seen);
+    return out;
+  }
+
+  if ("props" in node) {
+    const props = (node as { props: Record<string, unknown> }).props;
+    for (const [key, value] of Object.entries(props)) {
+      // Skip function handlers and non-content props.
+      if (typeof value === "function") continue;
+      collectText(value, out, seen);
+    }
+    return out;
+  }
+
+  // Plain object (e.g. a data prop like `pkg` or a review row).
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    collectText(value, out, seen);
+  }
+  return out;
+}
+
+/** Joined with no separator, mirroring rendered HTML text content. */
+function textOf(tree: unknown): string {
+  return collectText(tree).join("");
+}
+
+/**
+ * Pulls the props a page passed to a given child component.
+ *
+ * Some assertions (the formatted ৳400 price, the "Available" badge) only exist
+ * AFTER a child component renders, so a tree walk cannot see them. Extracting
+ * the real props and rendering the real component keeps the test honest: it
+ * exercises page -> props -> rendered HTML, with no re-implementation.
+ */
+function findProps(tree: unknown, component: unknown, seen = new Set<unknown>()): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  if (!tree || typeof tree !== "object" || seen.has(tree)) return out;
+  seen.add(tree);
+  if (Array.isArray(tree)) {
+    for (const c of tree) out.push(...findProps(c, component, seen));
+    return out;
+  }
+  const el = tree as { type?: unknown; props?: Record<string, unknown> };
+  if ("type" in el && el.type === component && el.props) out.push(el.props);
+  if (el.props) {
+    for (const v of Object.values(el.props)) out.push(...findProps(v, component, seen));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Seed
+// ---------------------------------------------------------------------------
+const [pkg] = await db
+  .insert(schema.packages)
+  .values({
+    name: "7 Days Boom Trending",
+    category: "boom",
+    newPrice: "400.00",
+    oldPrice: "500.00",
+    shortDescription: "7+1 premium shorts",
+    description: "A full week of ready-to-upload trending shorts.",
+    durationLabel: "7 Days",
+    videoQuantity: 8,
+    youtubeDemoUrl: "https://youtu.be/dQw4w9WgXcQ",
+    visible: true,
+    available: true,
+    sortOrder: 0,
+  })
+  .returning();
+
+await db.insert(schema.packageFeatures).values([
+  { packageId: pkg.id, label: "High Quality", sortOrder: 0 },
+  { packageId: pkg.id, label: "Trending Topics", sortOrder: 1 },
+  { packageId: pkg.id, label: "Fast Delivery", sortOrder: 2 },
+]);
+
+await db.insert(schema.packages).values({
+  name: "Hidden Package",
+  newPrice: "100.00",
+  visible: false,
+  available: true,
+  sortOrder: 9,
+});
+await db.insert(schema.packages).values({
+  name: "Sold Out Package",
+  newPrice: "200.00",
+  visible: true,
+  available: false,
+  sortOrder: 8,
+});
+
+await db.insert(schema.coupons).values({ code: "SAVE50", discountAmount: "50.00", active: true });
+await db.insert(schema.coupons).values({ code: "DEAD10", discountPercent: 10, active: false });
+
+await db.insert(schema.testimonials).values([
+  { name: "Rahim Uddin", message: "Fast delivery, great shorts.", rating: 5, approved: true, visible: true },
+  { name: "Unapproved Person", message: "This should never render.", rating: 5, approved: false, visible: true },
+]);
+
+// ---------------------------------------------------------------------------
+console.log("POST /api/orders — real route handler");
+// ---------------------------------------------------------------------------
+
+let createdOrderNumber = "";
+
+await test("accepts a valid order and returns 201 with an order number", async () => {
+  const res = await ordersRoute.POST(
+    post("/api/orders", {
+      packageId: pkg.id,
+      customerName: "Rahim Uddin",
+      whatsapp: "01712345678",
+      paymentMethod: "bKash",
+      transactionId: "TRXINT0001",
+      screenshotPath: "screenshots/2026/09/a.jpg",
+    }),
+  );
+  assert.equal(res.status, 201);
+  const data = (await res.json()) as { orderNumber: string; finalAmount: number };
+  assert.match(data.orderNumber, /^BBS-\d{6}$/);
+  assert.equal(data.finalAmount, 400);
+  createdOrderNumber = data.orderNumber;
+});
+
+await test("ignores a client-supplied price — the server computes its own", async () => {
+  const res = await ordersRoute.POST(
+    post("/api/orders", {
+      packageId: pkg.id,
+      customerName: "Tamper Attempt",
+      whatsapp: "01812345678",
+      paymentMethod: "Nagad",
+      transactionId: "TRXINT0002",
+      price: 1, // attacker tries to set the price directly
+      finalAmount: 1,
+      basePrice: 1,
+    }),
+  );
+  assert.equal(res.status, 201);
+  const data = (await res.json()) as { finalAmount: number };
+  assert.equal(data.finalAmount, 400, "client-supplied price must be ignored");
+});
+
+await test("rejects a duplicate transaction ID with 409", async () => {
+  const res = await ordersRoute.POST(
+    post("/api/orders", {
+      packageId: pkg.id,
+      customerName: "Rahim Uddin",
+      whatsapp: "01712345678",
+      paymentMethod: "bKash",
+      transactionId: "TRXINT0001",
+    }),
+  );
+  assert.equal(res.status, 409);
+});
+
+await test("returns 404 for an unknown package", async () => {
+  const res = await ordersRoute.POST(
+    post("/api/orders", {
+      packageId: 999999,
+      customerName: "Nobody",
+      whatsapp: "01712345678",
+      paymentMethod: "bKash",
+      transactionId: "TRXINT0003",
+    }),
+  );
+  assert.equal(res.status, 404);
+});
+
+await test("returns 400 with a message for missing fields", async () => {
+  const res = await ordersRoute.POST(
+    post("/api/orders", { packageId: pkg.id, customerName: "", whatsapp: "", paymentMethod: "bKash", transactionId: "" }),
+  );
+  assert.equal(res.status, 400);
+  const data = (await res.json()) as { error: string };
+  assert.ok(data.error.length > 0);
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nPOST /api/coupons/validate — real route handler");
+// ---------------------------------------------------------------------------
+
+await test("validates an active coupon and reports the discount", async () => {
+  const res = await couponsRoute.POST(post("/api/coupons/validate", { code: "save50", amount: 400 }));
+  assert.equal(res.status, 200);
+  const data = (await res.json()) as { valid: boolean; discount: number; note: string };
+  assert.equal(data.valid, true);
+  assert.equal(data.discount, 50);
+  assert.ok(data.note.includes("50"));
+});
+
+await test("rejects a disabled coupon", async () => {
+  const res = await couponsRoute.POST(post("/api/coupons/validate", { code: "DEAD10", amount: 400 }));
+  const data = (await res.json()) as { valid: boolean; error: string };
+  assert.equal(data.valid, false);
+  assert.ok(data.error.length > 0);
+});
+
+await test("rejects an unknown coupon without leaking which codes exist", async () => {
+  const res = await couponsRoute.POST(post("/api/coupons/validate", { code: "NOPE123", amount: 400 }));
+  const data = (await res.json()) as { valid: boolean };
+  assert.equal(data.valid, false);
+});
+
+await test("enforces the minimum order amount", async () => {
+  await db.insert(schema.coupons).values({
+    code: "BIG100",
+    discountAmount: "100.00",
+    minOrderAmount: "1000.00",
+    active: true,
+  });
+  const res = await couponsRoute.POST(post("/api/coupons/validate", { code: "BIG100", amount: 400 }));
+  const data = (await res.json()) as { valid: boolean; error: string };
+  assert.equal(data.valid, false);
+  assert.ok(/minimum/i.test(data.error));
+});
+
+// ---------------------------------------------------------------------------
+console.log("\nServer components — real page rendering against the database");
+// ---------------------------------------------------------------------------
+
+await test("homepage passes real package data down to the cards", async () => {
+  const tree = await HomePage();
+  const cards = findProps(tree, PackageCard);
+
+  assert.ok(cards.length >= 2, `expected visible packages, got ${cards.length} cards`);
+  const text = textOf(cards);
+  assert.ok(text.includes("7 Days Boom Trending"), "visible package missing from card props");
+  assert.ok(text.includes("Sold Out Package"), "unavailable package should still be listed");
+  assert.ok(text.includes("High Quality"), "package features missing from card props");
+});
+
+await test("PackageCard renders the formatted price, badge and CTA", async () => {
+  const tree = await HomePage();
+  const [card] = findProps(tree, PackageCard).filter((c) => c.pkg);
+  const html = renderToStaticMarkup(createElement(PackageCard, card as never));
+
+  assert.ok(html.includes("৳400"), "formatted price missing");
+  assert.ok(html.includes("৳500"), "strikethrough price missing");
+  assert.ok(html.includes("Available"), "availability badge missing");
+  assert.ok(html.includes("High Quality"), "feature tick missing");
+  assert.ok(html.includes("Order Now"), "CTA missing");
+  assert.ok(html.includes("/checkout/"), "CTA must link to checkout");
+});
+
+await test("homepage hides packages with visible=false", async () => {
+  const text = textOf(await HomePage());
+  assert.ok(!text.includes("Hidden Package"), "visible=false package leaked onto the homepage");
+});
+
+await test("homepage only renders admin-approved reviews", async () => {
+  const text = textOf(await HomePage());
+  assert.ok(text.includes("Rahim Uddin"), "approved review missing");
+  assert.ok(!text.includes("Unapproved Person"), "unapproved review leaked onto the homepage");
+});
+
+await test("checkout renders the package, its price and the YouTube demo", async () => {
+  const tree = await CheckoutPage({ params: Promise.resolve({ packageId: String(pkg.id) }) });
+  const text = textOf(tree);
+
+  assert.ok(text.includes("7 Days Boom Trending"), "package name missing");
+  assert.ok(text.includes("৳400"), "final price missing");
+  assert.ok(text.includes("৳500"), "strikethrough price missing");
+  assert.ok(text.includes("Save 20%"), "discount pill missing");
+  assert.ok(text.includes("dQw4w9WgXcQ"), "YouTube video id not embedded");
+  // The bKash/Nagad labels are static UI inside CheckoutForm (a client
+  // component using useRouter, so it cannot render outside router context).
+  // What the page is responsible for is handing it the configured numbers.
+  const forms = findProps(tree, CheckoutForm);
+  assert.equal(forms.length, 1, "checkout form not rendered");
+  const settings = forms[0].settings as Record<string, string>;
+  assert.ok(settings.bkashNumber, "bKash number not passed to the payment form");
+  assert.ok(settings.nagadNumber !== undefined, "Nagad number not passed to the payment form");
+  assert.equal((forms[0].pkg as { finalPrice: number }).finalPrice, 400, "wrong price handed to the form");
+});
+
+await test("checkout blocks ordering an unavailable package", async () => {
+  const [unavailable] = await db
+    .select()
+    .from(schema.packages)
+    .where((await import("drizzle-orm")).eq(schema.packages.name, "Sold Out Package"));
+
+  const tree = await CheckoutPage({ params: Promise.resolve({ packageId: String(unavailable.id) }) });
+  const text = textOf(tree);
+
+  assert.ok(/currently unavailable/i.test(text), "unavailable notice missing");
+  assert.ok(!text.includes("Confirm Order"), "order form must not render for an unavailable package");
+});
+
+await test("the order created over HTTP is readable by order number", async () => {
+  const { eq } = await import("drizzle-orm");
+  const rows = await db
+    .select()
+    .from(schema.orders)
+    .where(eq(schema.orders.orderNumber, createdOrderNumber));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, "pending");
+  assert.equal(Number(rows[0].finalAmount), 400);
+});
+
+console.log(`\n${passed} passed, ${failed} failed`);
+await client.close();
+process.exit(failed > 0 ? 1 : 0);

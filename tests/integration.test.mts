@@ -657,6 +657,61 @@ await test("the floating help button is rendered from the layout with the settin
 });
 
 // ---------------------------------------------------------------------------
+console.log("\n/order/[orderNumber] — the success/status page for a real order");
+// ---------------------------------------------------------------------------
+
+await test("the order page shows the id, amount, status and a WhatsApp link", async () => {
+  assert.ok(createdOrderNumber, "an order must have been created earlier in this suite");
+
+  const OrderPage = (await import("../src/app/(site)/order/[orderNumber]/page")).default;
+  const tree = await renderPage(() =>
+    OrderPage({ params: Promise.resolve({ orderNumber: createdOrderNumber }) }),
+  );
+  const text = textOf(tree);
+
+  const rows = await client.query<{
+    package_name: string;
+    final_amount: string | null;
+    price: string | null;
+    status: string;
+  }>(`select package_name, final_amount, price, status from orders where order_number = $1`, [
+    createdOrderNumber,
+  ]);
+  const row = rows.rows[0];
+  assert.ok(row, "the order must exist in the database");
+
+  assert.ok(text.includes("ORDER RECEIVED"), "expected the success headline");
+  assert.ok(text.includes(createdOrderNumber), "expected the order number to render");
+  assert.ok(text.includes(row.package_name), "expected the package name to render");
+
+  const { taka } = await import("../src/lib/pricing");
+  assert.ok(
+    text.includes(taka(row.final_amount ?? row.price)),
+    "expected the final amount, computed from the database row",
+  );
+
+  const { ORDER_STATUS_LABELS } = await import("../src/lib/orders");
+  const label =
+    ORDER_STATUS_LABELS[row.status as keyof typeof ORDER_STATUS_LABELS] ?? ORDER_STATUS_LABELS.pending;
+  assert.ok(text.includes(label), `expected the status label "${label}"`);
+
+  // The WhatsApp hand-off must use the settings number, not a hardcoded one.
+  const settingsRow = (
+    await client.query<{ whatsapp_number: string }>(`select whatsapp_number from settings where id = 1`)
+  ).rows[0];
+  const linkProps = findProps(tree, "a" as unknown);
+  const hrefs = linkProps.map((pr) => String(pr.href ?? ""));
+  assert.ok(
+    hrefs.some((h) => h.startsWith("https://wa.me/")),
+    "expected a click-to-chat wa.me link",
+  );
+  assert.ok(
+    hrefs.some((h) => h.includes(settingsRow.whatsapp_number.replace(/[^\d]/g, ""))),
+    "the wa.me link must use the number from settings",
+  );
+});
+
+// ---------------------------------------------------------------------------
 console.log("\nnot-found handling for unknown orders and packages");
 // ---------------------------------------------------------------------------
 

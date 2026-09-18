@@ -27,7 +27,9 @@ export default async function OrdersPage() {
         subtitle="See only your own orders, payment status and progress."
       />
       <div className="mx-auto max-w-2xl px-4 py-5">
-        <OrdersView whatsappNumber={settings.whatsappNumber || whatsappLink} />
+        {/* The *number* (not a full wa.me link) so OrderCard can build a correct
+            prefilled click-to-chat URL from it. */}
+        <OrdersView whatsappNumber={settings.whatsappNumber} />
       </div>
     </main>
   );

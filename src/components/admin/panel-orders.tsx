@@ -7,6 +7,7 @@ import {
   AdminScreen,
   apiSend,
   Button,
+  ConfirmDialog,
   EmptyState,
   Loading,
   Notice,
@@ -16,6 +17,7 @@ import {
   TextInput,
   useApi,
 } from "@/components/admin/ui";
+import { Camera, CheckCircle2, XCircle } from "lucide-react";
 
 type OrderRow = {
   id: number;
@@ -82,13 +84,20 @@ export function OrdersPanel({
     setSelected((current) => (current ? { ...current, ...(result.data.order as OrderRow) } : null));
   }
 
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function remove(id: number) {
-    if (!window.confirm("Delete this order permanently?")) return;
+    setDeleting(true);
     const result = await apiSend(`/api/orders/${id}`, "DELETE");
+    setDeleting(false);
+    setPendingDelete(null);
     if (result.ok) {
       setNotice("Order deleted");
       setSelected(null);
       reload();
+    } else {
+      setNotice(String(result.data.error ?? "Delete failed"));
     }
   }
 
@@ -151,7 +160,7 @@ export function OrdersPanel({
       >
         <div className="mb-3 flex flex-col gap-2">
           <TextInput
-            placeholder="🔍 Search name, phone, order id, trx id"
+            placeholder="Search name, phone, order id, trx id"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -254,14 +263,22 @@ export function OrdersPanel({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <a
-                href={`/api/admin/screenshot/${selected.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`btn-outline w-full py-2 text-[12px] ${selected.screenshotUrl ? "" : "pointer-events-none opacity-50"}`}
-              >
-                📷 View screenshot
-              </a>
+              {selected.screenshotUrl ? (
+                <a
+                  href={`/api/admin/screenshot/${selected.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline w-full py-2 text-[12px]"
+                >
+                  <Camera size={14} aria-hidden />
+                  View screenshot
+                </a>
+              ) : (
+                <Button variant="outline" className="w-full py-2 text-[12px]" disabled title="No screenshot was uploaded with this order">
+                  <Camera size={14} aria-hidden />
+                  No screenshot
+                </Button>
+              )}
               <a
                 href={`https://wa.me/88${selected.whatsapp}?text=${encodeURIComponent(
                   `Hello ${selected.customerName}, about your order ${selected.orderCode ?? ""} (${selected.packageName}) — `,
@@ -282,13 +299,15 @@ export function OrdersPanel({
                 <Button
                   onClick={() => patch(selected.id, { paymentStatus: "verified" }, "Payment verified")}
                 >
-                  ✅ Verify payment
+                  <CheckCircle2 size={15} aria-hidden />
+                  Verify payment
                 </Button>
                 <Button
                   variant="danger"
                   onClick={() => patch(selected.id, { paymentStatus: "rejected" }, "Payment rejected")}
                 >
-                  ⛔ Reject payment
+                  <XCircle size={15} aria-hidden />
+                  Reject payment
                 </Button>
               </div>
 
@@ -321,7 +340,7 @@ export function OrdersPanel({
                 Save note
               </Button>
 
-              <Button variant="danger" onClick={() => remove(selected.id)}>
+              <Button variant="danger" onClick={() => setPendingDelete(selected.id)}>
                 Delete order
               </Button>
             </div>
@@ -332,6 +351,18 @@ export function OrdersPanel({
           <EmptyState text="Orders, payment details and screenshots appear here." />
         )}
       </AdminScreen>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this order?"
+        message="The order and its payment details are removed permanently. This cannot be undone."
+        confirmLabel="Delete order"
+        busy={deleting}
+        onConfirm={() => {
+          if (pendingDelete !== null) void remove(pendingDelete);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }

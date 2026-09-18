@@ -1,6 +1,81 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  Camera,
+  CheckCircle2,
+  Clock3,
+  Link2,
+  Lock,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  Clapperboard,
+  CreditCard,
+  GalleryHorizontalEnd,
+  Gift,
+  HelpCircle,
+  Image as ImageIcon,
+  LayoutDashboard,
+  Megaphone,
+  MessageSquare,
+  Package,
+  Puzzle,
+  Receipt,
+  Settings,
+  Star,
+  Tag,
+  Users,
+  X,
+} from "lucide-react";
+
+/**
+ * The one icon system for the admin app: lucide-react. Section ids map to a
+ * component here so no panel has to invent (or paste) its own glyph.
+ */
+const ADMIN_ICONS = {
+  dashboard: LayoutDashboard,
+  orders: Receipt,
+  payments: CreditCard,
+  customers: Users,
+  packages: Package,
+  videos: Clapperboard,
+  coupons: Tag,
+  banners: ImageIcon,
+  notices: Megaphone,
+  testimonials: MessageSquare,
+  "proof-slides": Camera,
+  gallery: GalleryHorizontalEnd,
+  "free-video": Gift,
+  faqs: HelpCircle,
+  sections: Puzzle,
+  settings: Settings,
+  brand: Tag,
+  hero: Sparkles,
+  stats: TrendingUp,
+  contact: Link2,
+  payment: Wallet,
+  security: Lock,
+  reviews: Star,
+  completed: CheckCircle2,
+  pending: Clock3,
+  revenue: Wallet,
+} as const;
+
+export type AdminIconName = keyof typeof ADMIN_ICONS;
+
+export function AdminIcon({
+  name,
+  size = 16,
+  className = "",
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+}) {
+  const Icon = ADMIN_ICONS[name as AdminIconName] ?? LayoutDashboard;
+  return <Icon size={size} className={className} aria-hidden />;
+}
 
 // ---------------------------------------------------------------------------
 // Data
@@ -176,7 +251,7 @@ export function Toggle({
       <span className="text-[13px] font-semibold text-warm-dim">{label}</span>
       <span
         className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? "bg-ok" : "bg-slate-200"
+          checked ? "bg-ok" : "bg-white/15"
         }`}
       >
         <span
@@ -189,15 +264,17 @@ export function Toggle({
   );
 }
 
+/** Dark-theme pills — the previous light-theme tokens rendered as pale boxes
+ *  on the black admin surfaces. */
 const STATUS_CLASSES: Record<string, string> = {
   pending: "bg-gold-soft text-gold-light",
   payment_verified: "bg-gold-soft text-gold-light",
-  processing: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-ok",
+  processing: "bg-gold-soft text-gold-light",
+  completed: "bg-ok-soft text-ok",
   cancelled: "bg-white/10 text-warm-dim",
-  rejected: "bg-red-100 text-bad",
-  verified: "bg-emerald-100 text-ok",
-  approved: "bg-emerald-100 text-ok",
+  rejected: "bg-bad-soft text-bad",
+  verified: "bg-ok-soft text-ok",
+  approved: "bg-ok-soft text-ok",
 };
 
 export function StatusPill({ value }: { value: string }) {
@@ -210,10 +287,97 @@ export function StatusPill({ value }: { value: string }) {
 }
 
 export function Stars({ value }: { value: number }) {
+  const filled = Math.max(0, Math.min(5, value));
   return (
-    <span className="text-gold" aria-label={`${value} of 5`}>
-      {"★".repeat(Math.max(0, Math.min(5, value)))}
+    <span className="inline-flex text-gold" role="img" aria-label={`${value} of 5`}>
+      {[0, 1, 2, 3, 4].map((index) => (
+        <Star
+          key={index}
+          size={13}
+          className={index < filled ? "fill-current" : "opacity-30"}
+          aria-hidden
+        />
+      ))}
     </span>
+  );
+}
+
+/**
+ * In-app confirmation dialog.
+ *
+ * `window.confirm()` is unusable on Android Chrome inside a PWA/standalone
+ * context and is trivially missed on a phone, so destructive admin actions ask
+ * here instead. The sheet is a real dialog: focus moves to the cancel button,
+ * Escape and backdrop taps close it, and the body never scrolls behind it.
+ */
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+      role="presentation"
+      onClick={onCancel}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-sm rounded-3xl border border-line bg-surface p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-extrabold text-warm">{title}</h3>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close"
+            className="rounded-lg p-1 text-muted transition hover:bg-white/5 hover:text-warm"
+          >
+            <X size={16} aria-hidden />
+          </button>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted">{message}</p>
+        <div className="mt-4 flex gap-2">
+          <Button variant="ghost" className="flex-1 py-2.5 text-xs" onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="danger" className="flex-1 py-2.5 text-xs" onClick={onConfirm} disabled={busy} autoFocus>
+            {busy ? "Working…" : confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -270,8 +434,8 @@ export function ImageField({
             className="h-14 w-14 shrink-0 rounded-xl border border-line object-cover"
           />
         ) : (
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-dashed border-slate-300 text-muted-2">
-            🖼
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-dashed border-line text-muted-2">
+            <ImageIcon size={18} aria-hidden />
           </span>
         )}
         <div className="flex-1">

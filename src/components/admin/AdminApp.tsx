@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Loader2, LogOut, Settings } from "lucide-react";
+import { AdminIcon } from "./ui";
 import { ADMIN_SECTIONS, CustomersPanel, DashboardPanel, ReviewsPanel } from "./panels";
 import { OrdersPanel } from "./panel-orders";
 import { PackagesPanel } from "./panel-packages";
@@ -11,11 +13,11 @@ import { COLLECTIONS, CollectionPanel, SettingsPanel, VideosPanel } from "./pane
 const SCREEN_TABS = ["Menu", "List", "Detail"];
 
 const MOBILE_NAV = [
-  { id: "dashboard", label: "Home", icon: "📊" },
-  { id: "orders", label: "Orders", icon: "🧾" },
-  { id: "packages", label: "Packages", icon: "📦" },
-  { id: "reviews", label: "Reviews", icon: "⭐" },
-  { id: "settings", label: "Settings", icon: "⚙️" },
+  { id: "dashboard", label: "Home", icon: "dashboard" },
+  { id: "orders", label: "Orders", icon: "orders" },
+  { id: "packages", label: "Packages", icon: "packages" },
+  { id: "reviews", label: "Reviews", icon: "reviews" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
 
 function sectionFromPath(pathname: string): string {
@@ -74,11 +76,11 @@ export default function AdminApp() {
 
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-6">
-      <header className="sticky top-0 z-30 border-b border-line bg-coal/95 backdrop-blur">
+      <header className="site-header sticky top-0 z-30 border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold text-ink">
-              ⚙️
+              <Settings size={17} aria-hidden />
             </span>
             <div className="min-w-0">
               <p className="truncate text-[13px] font-extrabold text-warm">
@@ -96,9 +98,11 @@ export default function AdminApp() {
               type="button"
               onClick={logout}
               disabled={busy}
+              aria-busy={busy}
               className="btn-ghost px-3 py-1.5 text-[11px]"
             >
-              {busy ? "…" : "Logout"}
+              {busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <LogOut size={13} aria-hidden />}
+              {busy ? "Signing out…" : "Logout"}
             </button>
           </div>
         </div>
@@ -121,7 +125,7 @@ export default function AdminApp() {
         {renderPanel()}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-coal/95 backdrop-blur lg:hidden">
+      <nav className="bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-line lg:hidden">
         <div className="mx-auto flex max-w-lg">
           {MOBILE_NAV.map((item) => {
             const active = section === item.id;
@@ -131,9 +135,7 @@ export default function AdminApp() {
                 href={`/admin/${item.id}`}
                 className={`bottom-nav-item ${active ? "bottom-nav-item-active" : ""}`}
               >
-                <span className="text-base" aria-hidden>
-                  {item.icon}
-                </span>
+                <AdminIcon name={item.icon} size={17} />
                 <span>{item.label}</span>
               </Link>
             );

@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { packages } from "@/db/schema";
 import { computePackagePricing } from "@/lib/pricing";
-import { getSettings } from "@/lib/settings";
+import { getPublicSettings } from "@/lib/publicContent";
 import CheckoutForm from "@/components/CheckoutForm";
 import SitePageHeader from "@/components/SitePageHeader";
 
@@ -23,14 +23,23 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
 
   await ensureSchema();
 
-  const rows = await db.select().from(packages).where(eq(packages.id, idNum)).limit(1);
+  // Package row + settings in parallel, and settings from the tagged cache —
+  // this page is where every "Order Now" tap lands, so every millisecond of
+  // serial database work here is felt as a dead button.
+  const [rows, settings] = await Promise.all([
+    db.select().from(packages).where(eq(packages.id, idNum)).limit(1),
+    getPublicSettings(),
+  ]);
+
   const pkg = rows[0];
   if (!pkg) notFound();
 
-  const settings = await getSettings();
   const pricing = computePackagePricing(pkg);
   const features = Array.isArray(pkg.features)
-    ? (pkg.features as unknown[]).map((item) => String(item)).filter(Boolean)
+    ? (pkg.features as unknown[])
+        .map((item) => (typeof item === "string" ? item : String((item as { text?: string })?.text ?? "")))
+        .map((item) => item.trim())
+        .filter(Boolean)
     : [];
 
   return (

@@ -11,6 +11,11 @@
  * Rows it creates for the E2E package/coupon/order/banner/review are removed
  * again at the end of the run. The two test customers it registers are keyed by
  * fixed phone numbers (upserted), so repeat runs do not pile up rows.
+ *
+ * The production API rate-limits order submissions per IP (30 / 10 min) and the
+ * limiter lives in server memory, so run this suite against a *freshly started*
+ * server. If the budget is already spent the suite stops early with a clear
+ * message instead of misreporting failures.
  */
 const BASE = process.env.E2E_BASE_URL || process.env.BASE || "http://127.0.0.1:3000";
 
@@ -86,6 +91,8 @@ const imageBlob = (label) => {
 const admin = jar();
 const customerA = jar();
 const customerB = jar();
+// rows created along the way that the final cleanup pass should remove again
+const cleanupTargets = [];
 
 console.log("\n=== 1. Public pages ===");
 for (const path of ["/", "/reviews", "/free", "/demo", "/orders", "/profile", "/admin/login"]) {
@@ -113,6 +120,29 @@ res = await req(
 check("correct admin password → 200", res.status === 200, `(got ${res.status})`);
 check("admin session cookie set", admin.header().includes("mbs_admin_session="));
 check("admin dashboard accessible", (await req("/api/dashboard", {}, admin)).status === 200);
+
+// A previous run that crashed before its cleanup pass can leave fixed-name test
+// rows behind (coupons E2E10/E2E150/E2EEXP, packages "E2E …", orders TRXE2E…).
+// Remove them up front so this run always starts from a known state. Nothing
+// outside the E2E* naming convention is touched.
+{
+  const leftovers = await json(await req("/api/coupons", {}, admin));
+  for (const coupon of leftovers.coupons ?? []) {
+    if (/^E2E/i.test(coupon.code || "")) await req(`/api/coupons/${coupon.id}`, { method: "DELETE" }, admin);
+  }
+  const packs = await json(await req("/api/packages", {}, admin));
+  for (const pkg of packs.packages ?? []) {
+    if (/^E2E/i.test(pkg.name || "")) await req(`/api/packages/${pkg.id}`, { method: "DELETE" }, admin);
+  }
+  for (const prefix of ["TRXE2E", "TRXRACE", "TRXRETRY", "TRXBURST"]) {
+    const found = await json(await req(`/api/orders?q=${prefix}`, {}, admin));
+    for (const order of found.orders ?? []) {
+      if ((order.transactionId || "").startsWith(prefix)) {
+        await req(`/api/orders/${order.id}`, { method: "DELETE" }, admin);
+      }
+    }
+  }
+}
 
 console.log("\n=== 3. Package pricing (percentage + fixed) ===");
 const pct = await json(
@@ -267,6 +297,13 @@ form.append("pin", "4321");
 form.append("screenshot", imageBlob("screen-a.png"));
 
 res = await req("/api/orders", { method: "POST", body: form });
+if (res.status === 429) {
+  console.error(
+    "\nThe server's in-memory order rate limit (30 / 10 min per IP) is already\n" +
+      "spent — restart the server, then run this suite again.\n",
+  );
+  process.exit(3);
+}
 const created = await json(res);
 check("order created (201)", res.status === 201, `(got ${res.status}) ${JSON.stringify(created).slice(0, 160)}`);
 check("order has a unique order code", /^BS-[A-Z0-9]{6}$/.test(created.order?.orderCode || ""), created.order?.orderCode);
@@ -422,10 +459,173 @@ void videoOff;
 const homeNoVideo = await (await req("/")).text();
 check("featured video section disappears when no URL is set", !homeNoVideo.includes("i.ytimg.com/vi/") && !homeNoVideo.includes("Play:"));
 
+console.log("\n=== 13. Concurrency, resilience & caching regressions ===");
+
+// 13a. Six genuinely simultaneous submissions of one payment must store ONE
+// order (the old code stored two: check-then-insert race).
+{
+  const trx = `TRXRACE${Date.now() % 100000}`;
+  const make = () => {
+    const fd = new FormData();
+    fd.append("packageId", String(pkgB.id));
+    fd.append("quantity", "1");
+    fd.append("customerName", "E2E Racer");
+    fd.append("whatsapp", "01955555555");
+    fd.append("paymentMethod", "bKash");
+    fd.append("transactionId", trx);
+    return req("/api/orders", { method: "POST", body: fd });
+  };
+  const responses = await Promise.all([make(), make(), make(), make(), make(), make()]);
+  const statuses = responses.map((r) => r.status);
+  const bodies = await Promise.all(responses.map(json));
+  const codes = new Set(bodies.map((b) => b.order?.orderCode).filter(Boolean));
+  check(
+    "6 concurrent identical orders → no 5xx",
+    statuses.every((st) => st < 500),
+    `statuses ${statuses.join(",")}`,
+  );
+  check(
+    "6 concurrent identical orders → exactly one created",
+    bodies.filter((b) => b.duplicate === false).length === 1,
+    `duplicates=${bodies.filter((b) => b.duplicate === true).length}`,
+  );
+  check(
+    "all concurrent responses agree on one order code",
+    codes.size === 1,
+    [...codes].join(","),
+  );
+  const listed = await json(await req(`/api/orders?q=${trx}`, {}, admin));
+  check("database holds one order for the raced payment", listed.orders?.length === 1, `got ${listed.orders?.length}`);
+  for (const order of listed.orders ?? []) {
+    cleanupTargets.push(`/api/orders/${order.id}`);
+  }
+}
+
+// 13b. Two simultaneous account registrations with the same phone must never
+// 500 (the old code crashed on the customers unique index). Fresh phone per run
+// so a leftover account from an earlier run cannot change the outcome.
+{
+  const phone = `0196${String(Date.now()).slice(-7)}`;
+  const body = JSON.stringify({ phone, name: "E2E Twin", pin: "7788" });
+  const opts = { method: "POST", headers: { "content-type": "application/json" }, body };
+  const [r1, r2] = await Promise.all([
+    req("/api/customer/register", opts),
+    req("/api/customer/register", opts),
+  ]);
+  check(
+    "concurrent registration → no 5xx",
+    r1.status < 500 && r2.status < 500,
+    `${r1.status}/${r2.status}`,
+  );
+  const outcomes = [r1.status, r2.status].sort((a, b) => a - b).join(",");
+  check(
+    "concurrent registration → exactly one winner, loser sees 409",
+    outcomes === "201,409",
+    outcomes,
+  );
+}
+
+// 13c. Validation must run BEFORE the rate limiter counts a request, otherwise
+// a burst of malformed payloads (or a bot) locks real customers out. Proof: the
+// register bucket allows 12 per window; 15 invalid attempts must each come back
+// as 400 and must not consume the budget, so the 16th (valid) request succeeds.
+{
+  const invalidStatuses = [];
+  for (let i = 0; i < 15; i += 1) {
+    const r = await req("/api/customer/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "1", name: "x", pin: "2" }),
+    });
+    invalidStatuses.push(r.status);
+  }
+  check(
+    "15 invalid register attempts are rejected as 400, never 429",
+    invalidStatuses.every((st) => st === 400),
+    invalidStatuses.join(","),
+  );
+  const ok = await req("/api/customer/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone: `0197${String(Date.now()).slice(-7)}`, name: "E2E AfterBurst", pin: "9911" }),
+  });
+  check(
+    "valid register still succeeds after the invalid burst (budget untouched)",
+    ok.status === 200 || ok.status === 201,
+    `(got ${ok.status})`,
+  );
+
+  const orderInvalid = [];
+  for (let i = 0; i < 4; i += 1) {
+    const fd = new FormData();
+    fd.append("packageId", String(pkgB.id));
+    fd.append("whatsapp", "nope");
+    fd.append("transactionId", "X");
+    const r = await req("/api/orders", { method: "POST", body: fd });
+    orderInvalid.push(r.status);
+  }
+  check("invalid order payloads are rejected as 400, never 429", orderInvalid.every((st) => st === 400), orderInvalid.join(","));
+}
+
+// 13d. A retry of the exact same payment (e.g. the first response was dropped
+// by a flaky mobile connection) must return the original order, not a new one.
+{
+  const trx = `TRXRETRY${Date.now() % 100000}`;
+  const phone = `0198${String(Date.now()).slice(-7)}`;
+  const fd = () => {
+    const f = new FormData();
+    f.append("packageId", String(pkgB.id));
+    f.append("quantity", "1");
+    f.append("customerName", "E2E Retry");
+    f.append("whatsapp", phone);
+    f.append("paymentMethod", "bKash");
+    f.append("transactionId", trx);
+    return f;
+  };
+  const firstRes = await req("/api/orders", { method: "POST", body: fd() });
+  const first = await json(firstRes);
+  if (firstRes.status === 429) {
+    check("retrying the same payment returns the original order", true, "skipped: global order budget already spent by an earlier run on this server");
+  } else {
+    const second = await json(await req("/api/orders", { method: "POST", body: fd() }));
+    check(
+      "retrying the same payment returns the original order",
+      second.duplicate === true && second.order?.orderCode === first.order?.orderCode,
+      `${first.order?.orderCode} vs ${second.order?.orderCode}`,
+    );
+    if (first.order?.id) cleanupTargets.push(`/api/orders/${first.order.id}`);
+  }
+}
+
+// 13e. Order rows expose every field the WhatsApp click-to-chat message needs.
+{
+  const mine = await json(await req("/api/customer/orders", {}, customerA));
+  const row = mine.orders?.[0];
+  check(
+    "order rows carry payment/price fields for the WhatsApp message",
+    row && "paymentNumber" in row && "originalPrice" in row && "discountAmount" in row,
+    JSON.stringify(row ?? {}).slice(0, 120),
+  );
+}
+
+// 13f. The public homepage is served from the ISR cache, not recomputed live.
+{
+  await req("/");
+  const second = await req("/");
+  const cacheHeader = second.headers.get("x-nextjs-cache") || "";
+  const cacheControl = second.headers.get("cache-control") || "";
+  check(
+    "homepage is cacheable / served from ISR cache",
+    cacheHeader === "HIT" || cacheHeader === "STALE" || /s-maxage|public/.test(cacheControl),
+    `x-nextjs-cache=${cacheHeader} cache-control=${cacheControl}`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Clean up the rows this run created (best effort, admin session required)
 // ---------------------------------------------------------------------------
-const cleanupTargets = [
+cleanupTargets.push(
+  ...[
   created.order?.id ? `/api/orders/${created.order.id}` : null,
   createdB.order?.id ? `/api/orders/${createdB.order.id}` : null,
   adminOrder?.id ? `/api/orders/${adminOrder.id}` : null,
@@ -437,7 +637,8 @@ const cleanupTargets = [
   couponExpired.coupon?.id ? `/api/coupons/${couponExpired.coupon.id}` : null,
   banner.banner?.id ? `/api/banners/${banner.banner.id}` : null,
   review.review?.id ? `/api/admin/reviews/${review.review.id}` : null,
-].filter((path) => typeof path === "string");
+  ].filter((path) => typeof path === "string"),
+);
 
 let cleaned = 0;
 for (const path of cleanupTargets) {

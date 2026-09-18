@@ -3,6 +3,7 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { hashPassword } from "@/lib/auth";
 import { isAdminAuthed, buildAdminCookie } from "@/lib/session";
 import { getSettings, publicSettings, updateSettings } from "@/lib/settings";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,11 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updated = await updateSettings(patch as Parameters<typeof updateSettings>[0]);
+
+  // Settings feed every public section (hero, logo, videos, contact links),
+  // so purge the whole public content cache.
+  revalidatePublicContent();
+
   const res = NextResponse.json({ settings: publicSettings(updated) });
 
   // Changing the admin password rotates the session cookie too, so the admin

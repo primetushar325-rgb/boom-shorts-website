@@ -4,6 +4,8 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { gallery } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import { isAdminAuthed } from "@/lib/requireAdmin";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export async function GET() {
   await ensureSchema();
@@ -31,5 +33,6 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
+  revalidatePublicContent(PUBLIC_TAGS.gallery);
   return NextResponse.json({ item: created }, { status: 201 });
 }

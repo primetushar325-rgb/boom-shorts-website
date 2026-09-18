@@ -101,34 +101,34 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
 
         <div className="grid grid-cols-2 gap-2.5">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div key={stat.label} className="rounded-2xl border border-line bg-white/5 p-3">
               <p className="text-base" aria-hidden>
                 {stat.icon}
               </p>
-              <p className="mt-1 text-lg font-extrabold text-navy">{stat.value}</p>
-              <p className="text-[11px] text-slate-500">{stat.label}</p>
+              <p className="mt-1 text-lg font-extrabold text-warm">{stat.value}</p>
+              <p className="text-[11px] text-muted">{stat.label}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-lg font-extrabold text-amber-800">{data?.pendingReviews ?? 0}</p>
-            <p className="text-[11px] text-amber-700">Reviews waiting</p>
+          <div className="rounded-2xl border border-gold-line bg-gold-soft p-3">
+            <p className="text-lg font-extrabold text-gold-light">{data?.pendingReviews ?? 0}</p>
+            <p className="text-[11px] text-gold-light">Reviews waiting</p>
           </div>
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
-            <p className="text-lg font-extrabold text-blue-800">{data?.totalVisitors ?? 0}</p>
-            <p className="text-[11px] text-blue-700">Total visitors</p>
+          <div className="rounded-2xl border border-gold-line bg-gold-soft p-3">
+            <p className="text-lg font-extrabold text-gold-light">{data?.totalVisitors ?? 0}</p>
+            <p className="text-[11px] text-gold-light">Total visitors</p>
           </div>
         </div>
 
         {data?.topPackage ? (
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+          <div className="mt-3 rounded-2xl border border-line bg-coal p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-2">
               Best selling package
             </p>
-            <p className="mt-1 text-sm font-bold text-navy">{data.topPackage.name}</p>
-            <p className="text-[11px] text-slate-500">{data.topPackage.count} orders</p>
+            <p className="mt-1 text-sm font-bold text-warm">{data.topPackage.name}</p>
+            <p className="text-[11px] text-muted">{data.topPackage.count} orders</p>
           </div>
         ) : null}
       </AdminScreen>
@@ -142,11 +142,11 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
         <div className="flex flex-col gap-2">
           {ADMIN_SECTIONS.filter((section) => section.id !== "dashboard").map((section) => (
             <Link key={section.id} href={`/admin/${section.id}`} className="row-tap">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">
                 {section.icon}
               </span>
-              <span className="flex-1 text-[13px] font-bold text-navy">{section.label}</span>
-              <span className="text-slate-300">›</span>
+              <span className="flex-1 text-[13px] font-bold text-warm">{section.label}</span>
+              <span className="text-muted-2">›</span>
             </Link>
           ))}
         </div>
@@ -163,14 +163,14 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
           <div className="flex flex-col gap-2">
             {data.recentOrders.map((order) => (
               <Link key={order.id} href="/admin/orders" className="row-tap">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gold-soft text-gold">
                   {order.orderCode?.slice(-2) ?? "##"}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-bold text-navy">
+                  <span className="block truncate text-[13px] font-bold text-warm">
                     {order.customerName}
                   </span>
-                  <span className="block truncate text-[11px] text-slate-500">
+                  <span className="block truncate text-[11px] text-muted">
                     {order.packageName} · {taka(order.price)}
                   </span>
                 </span>
@@ -235,18 +235,18 @@ export function CustomersPanel({ activeScreen }: { activeScreen: number }) {
         active={activeScreen === 0}
       >
         <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-lg font-extrabold text-navy">{data?.customers.length ?? 0}</p>
-            <p className="text-[11px] text-slate-500">Total customers</p>
+          <div className="rounded-2xl border border-line bg-white/5 p-3">
+            <p className="text-lg font-extrabold text-warm">{data?.customers.length ?? 0}</p>
+            <p className="text-[11px] text-muted">Total customers</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-lg font-extrabold text-navy">
+          <div className="rounded-2xl border border-line bg-white/5 p-3">
+            <p className="text-lg font-extrabold text-warm">
               {rows.filter((customer) => customer.orderCount > 0).length}
             </p>
-            <p className="text-[11px] text-slate-500">With orders</p>
+            <p className="text-[11px] text-muted">With orders</p>
           </div>
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
           Customers sign in with their WhatsApp number and PIN to see their own order history. You
           can reach any of them on WhatsApp from the order detail screen.
         </p>
@@ -272,22 +272,22 @@ export function CustomersPanel({ activeScreen }: { activeScreen: number }) {
               key={customer.id}
               type="button"
               onClick={() => open(customer)}
-              className={`row-tap ${selected?.id === customer.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+              className={`row-tap ${selected?.id === customer.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-gold-soft text-xs font-bold text-gold-light">
                 {(customer.name || customer.phone).slice(0, 1).toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-bold text-navy">
+                <span className="block truncate text-[13px] font-bold text-warm">
                   {customer.name || "Customer"}
                 </span>
-                <span className="block text-[11px] text-slate-500">{customer.phone}</span>
+                <span className="block text-[11px] text-muted">{customer.phone}</span>
               </span>
               <span className="text-right">
-                <span className="block text-[12px] font-bold text-navy">
+                <span className="block text-[12px] font-bold text-warm">
                   {taka(customer.paidTotal)}
                 </span>
-                <span className="block text-[10px] text-slate-400">
+                <span className="block text-[10px] text-muted-2">
                   {customer.orderCount} orders
                 </span>
               </span>
@@ -306,25 +306,25 @@ export function CustomersPanel({ activeScreen }: { activeScreen: number }) {
         {selected ? (
           <>
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-base font-extrabold text-navy">{selected.orderCount}</p>
-                <p className="text-[11px] text-slate-500">Orders</p>
+              <div className="rounded-2xl border border-line bg-white/5 p-3">
+                <p className="text-base font-extrabold text-warm">{selected.orderCount}</p>
+                <p className="text-[11px] text-muted">Orders</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-base font-extrabold text-navy">{taka(selected.paidTotal)}</p>
-                <p className="text-[11px] text-slate-500">Paid volume</p>
+              <div className="rounded-2xl border border-line bg-white/5 p-3">
+                <p className="text-base font-extrabold text-warm">{taka(selected.paidTotal)}</p>
+                <p className="text-[11px] text-muted">Paid volume</p>
               </div>
             </div>
 
             <div className="mt-3 flex flex-col gap-2">
               {orders.map((order) => (
-                <div key={order.id} className="rounded-2xl border border-slate-200 p-3">
+                <div key={order.id} className="rounded-2xl border border-line p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[12px] font-bold text-navy">{order.orderCode}</p>
+                    <p className="text-[12px] font-bold text-warm">{order.orderCode}</p>
                     <StatusPill value={order.status} />
                   </div>
-                  <p className="mt-1 text-[12px] text-slate-600">{order.packageName}</p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="mt-1 text-[12px] text-warm-dim">{order.packageName}</p>
+                  <p className="text-[11px] text-muted-2">
                     {taka(order.price)} · {formatDateTime(order.createdAt)}
                   </p>
                 </div>
@@ -408,19 +408,19 @@ export function ReviewsPanel({ activeScreen }: { activeScreen: number }) {
               type="button"
               onClick={() => setStatus(value)}
               className={`rounded-2xl border p-3 text-left transition ${
-                status === value ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                status === value ? "border-gold bg-gold-soft" : "border-line bg-coal"
               }`}
             >
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-2">
                 {value}
               </p>
-              <p className="mt-1 text-sm font-extrabold text-navy">
+              <p className="mt-1 text-sm font-extrabold text-warm">
                 {status === value ? reviews.length : "—"}
               </p>
             </button>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
           Only approved reviews appear on the website. Customers can submit one review per order and
           cannot edit anyone else&apos;s review.
         </p>
@@ -446,14 +446,14 @@ export function ReviewsPanel({ activeScreen }: { activeScreen: number }) {
               key={review.id}
               type="button"
               onClick={() => setSelected(review)}
-              className={`row-tap ${selected?.id === review.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+              className={`row-tap ${selected?.id === review.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
-                  <span className="truncate text-[13px] font-bold text-navy">{review.name}</span>
+                  <span className="truncate text-[13px] font-bold text-warm">{review.name}</span>
                   <Stars value={review.rating} />
                 </span>
-                <span className="mt-0.5 line-clamp-2 block text-[11px] text-slate-500">
+                <span className="mt-0.5 line-clamp-2 block text-[11px] text-muted">
                   {review.message}
                 </span>
               </span>
@@ -474,10 +474,10 @@ export function ReviewsPanel({ activeScreen }: { activeScreen: number }) {
       >
         {selected ? (
           <>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-2xl border border-line bg-white/5 p-3">
               <Stars value={selected.rating} />
-              <p className="mt-2 text-[13px] leading-relaxed text-slate-700">{selected.message}</p>
-              <p className="mt-2 text-[11px] text-slate-500">
+              <p className="mt-2 text-[13px] leading-relaxed text-warm-dim">{selected.message}</p>
+              <p className="mt-2 text-[11px] text-muted">
                 {selected.packageName ? `${selected.packageName} · ` : ""}
                 {selected.phone}
               </p>

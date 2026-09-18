@@ -43,7 +43,7 @@ export default async function FreeVideoPage() {
                 rel="noopener noreferrer"
                 className="card card-hover flex flex-col overflow-hidden"
               >
-                <div className="aspect-video w-full overflow-hidden bg-slate-100">
+                <div className="aspect-video w-full overflow-hidden bg-white/5">
                   {card.thumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -53,14 +53,14 @@ export default async function FreeVideoPage() {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-blue-600 to-navy text-2xl text-white">
+                    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-charcoal to-ink text-2xl text-white">
                       ▶
                     </div>
                   )}
                 </div>
                 <div className="p-3">
-                  <h2 className="line-clamp-2 text-[13px] font-bold text-navy">{card.title}</h2>
-                  <span className="mt-2 inline-block text-[11px] font-semibold text-blue-600">
+                  <h2 className="line-clamp-2 text-[13px] font-bold text-warm">{card.title}</h2>
+                  <span className="mt-2 inline-block text-[11px] font-semibold text-gold">
                     Watch free →
                   </span>
                 </div>
@@ -68,7 +68,7 @@ export default async function FreeVideoPage() {
             ))}
           </div>
         ) : (
-          <div className="card grid aspect-video place-items-center text-sm text-slate-400">
+          <div className="card grid aspect-video place-items-center text-sm text-muted-2">
             No free videos have been added yet. Please check back soon.
           </div>
         )}

@@ -171,15 +171,15 @@ export default function CheckoutForm({
     return (
       <div className="mx-auto max-w-md">
         <div className="card p-5 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-2xl">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ok-soft text-2xl">
             ✅
           </div>
-          <h1 className="mt-3 text-lg font-extrabold text-navy">Order submitted!</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="mt-3 text-lg font-extrabold text-warm">Order submitted!</h1>
+          <p className="mt-1 text-sm text-muted">
             We received your order. Payment verification usually takes a few minutes.
           </p>
 
-          <div className="mt-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-left text-sm">
+          <div className="mt-5 grid gap-2 rounded-2xl bg-white/5 p-4 text-left text-sm">
             <Row label="Order ID" value={result.orderCode} strong />
             <Row label="Package" value={result.packageName} />
             <Row label="Quantity" value={String(result.quantity)} />
@@ -191,13 +191,13 @@ export default function CheckoutForm({
           </div>
 
           {result.screenshotStored === false && (
-            <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+            <p className="mt-3 rounded-xl bg-gold-soft px-3 py-2 text-xs font-semibold text-gold-light">
               Your screenshot could not be uploaded. Please send it to us on WhatsApp with your
               Order ID.
             </p>
           )}
 
-          <p className="mt-3 text-[11px] text-slate-400">
+          <p className="mt-3 text-[11px] text-muted-2">
             Save your Order ID — you need it to track this order.
           </p>
 
@@ -239,16 +239,16 @@ export default function CheckoutForm({
       <div className="flex flex-col gap-4">
         <section className="card p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-xl">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gold-soft text-xl">
               {pkg.icon}
             </span>
             <div className="min-w-0">
-              <h1 className="text-base font-extrabold text-navy sm:text-lg">{pkg.name}</h1>
+              <h1 className="text-base font-extrabold text-warm sm:text-lg">{pkg.name}</h1>
               {pkg.description ? (
-                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{pkg.description}</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted">{pkg.description}</p>
               ) : null}
               {pkg.quantityLabel ? (
-                <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] font-semibold text-warm-dim">
                   ⏱ {pkg.quantityLabel}
                 </p>
               ) : null}
@@ -264,7 +264,7 @@ export default function CheckoutForm({
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#16a34a"
+                    stroke="#d4af37"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -282,7 +282,7 @@ export default function CheckoutForm({
 
         {demoVideo ? (
           <section className="card overflow-hidden">
-            <p className="border-b border-slate-100 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <p className="border-b border-line-soft px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted">
               Package demo video
             </p>
             <div className="aspect-video w-full bg-black">
@@ -299,31 +299,31 @@ export default function CheckoutForm({
         ) : null}
 
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Quantity</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">Quantity</p>
           <div className="mt-3 flex items-center gap-3">
             <button
               type="button"
               onClick={() => setQuantity((value) => Math.max(1, value - 1))}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-lg font-bold text-slate-600"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-line text-lg font-bold text-warm-dim"
               aria-label="Decrease quantity"
             >
               −
             </button>
-            <span className="min-w-[3rem] text-center text-lg font-extrabold text-navy">
+            <span className="min-w-[3rem] text-center text-lg font-extrabold text-warm">
               {quantity}
             </span>
             <button
               type="button"
               onClick={() => setQuantity((value) => Math.min(MAX_QUANTITY, value + 1))}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-lg font-bold text-slate-600"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-line text-lg font-bold text-warm-dim"
               aria-label="Increase quantity"
             >
               +
             </button>
-            <span className="text-xs text-slate-400">max {MAX_QUANTITY}</span>
+            <span className="text-xs text-muted-2">max {MAX_QUANTITY}</span>
           </div>
 
-          <div className="mt-4 grid gap-1.5 border-t border-slate-100 pt-4 text-sm">
+          <div className="mt-4 grid gap-1.5 border-t border-line-soft pt-4 text-sm">
             <Line label={`Original price × ${quantity}`} value={taka(subtotal)} />
             {packageDiscount > 0 ? (
               <Line label="Package discount" value={`− ${taka(packageDiscount)}`} tone="red" />
@@ -331,15 +331,15 @@ export default function CheckoutForm({
             {couponDiscount > 0 ? (
               <Line label={`Coupon ${coupon?.code}`} value={`− ${taka(couponDiscount)}`} tone="red" />
             ) : null}
-            <div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-2">
-              <span className="text-sm font-bold text-navy">Total payable</span>
-              <span className="text-xl font-extrabold text-blue-600">{taka(total)}</span>
+            <div className="mt-1 flex items-center justify-between border-t border-line-soft pt-2">
+              <span className="text-sm font-bold text-warm">Total payable</span>
+              <span className="text-xl font-extrabold text-gold">{taka(total)}</span>
             </div>
           </div>
         </section>
 
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">
             Coupon (optional)
           </p>
           <div className="mt-2 flex gap-2">
@@ -354,7 +354,7 @@ export default function CheckoutForm({
             </button>
           </div>
           {couponMessage ? (
-            <p className="mt-2 text-xs font-semibold text-slate-500">{couponMessage}</p>
+            <p className="mt-2 text-xs font-semibold text-muted">{couponMessage}</p>
           ) : null}
         </section>
       </div>
@@ -362,7 +362,7 @@ export default function CheckoutForm({
       {/* ---------------- payment + customer details ---------------- */}
       <div className="flex flex-col gap-4">
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Payment method</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">Payment method</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {methods.map((item) => (
               <button
@@ -371,8 +371,8 @@ export default function CheckoutForm({
                 onClick={() => setMethod(item.key)}
                 className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
                   method === item.key
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-600"
+                    ? "border-gold bg-gold-soft text-gold-light"
+                    : "border-line bg-coal text-warm-dim"
                 }`}
               >
                 {item.key}
@@ -380,11 +380,11 @@ export default function CheckoutForm({
             ))}
           </div>
 
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="mt-3 rounded-2xl border border-line bg-white/5 p-3.5 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-2">
               Send money to ({method})
             </p>
-            <p className="mt-1 text-xl font-extrabold tracking-wide text-navy">
+            <p className="mt-1 text-xl font-extrabold tracking-wide text-warm">
               {activeMethod?.number || "—"}
             </p>
             {activeMethod?.number ? (
@@ -409,11 +409,11 @@ export default function CheckoutForm({
               <img
                 src={settings.qrCodeUrl}
                 alt="Payment QR code"
-                className="mx-auto mt-3 h-32 w-32 rounded-xl border border-slate-200 bg-white object-contain"
+                className="mx-auto mt-3 h-32 w-32 rounded-xl border border-line bg-coal object-contain"
               />
             ) : null}
             {settings.paymentNotice ? (
-              <p className="mt-3 text-[11px] leading-relaxed text-amber-700">
+              <p className="mt-3 text-[11px] leading-relaxed text-gold-light">
                 {settings.paymentNotice}
               </p>
             ) : null}
@@ -421,7 +421,7 @@ export default function CheckoutForm({
         </section>
 
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">
             Your information
           </p>
           <div className="mt-3 flex flex-col gap-3">
@@ -489,9 +489,9 @@ export default function CheckoutForm({
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="input file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
+                className="input file:mr-3 file:rounded-lg file:border-0 file:bg-gold file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
               />
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-muted-2">
                 JPG/PNG/WebP up to 6MB. Stored privately — only our team can view it.
               </p>
             </div>
@@ -511,15 +511,19 @@ export default function CheckoutForm({
           </div>
 
           {error ? (
-            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+            <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad">
               {error}
             </p>
           ) : null}
 
-          <button type="submit" disabled={submitting} className="btn-primary mt-4 w-full py-3">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-gold btn-shine mt-4 w-full py-3 text-[15px]"
+          >
             {submitting ? "Submitting…" : `Confirm order · ${taka(total)}`}
           </button>
-          <p className="mt-2 text-center text-[11px] text-slate-400">
+          <p className="mt-2 text-center text-[11px] text-muted-2">
             Prices are verified on our server before the order is saved.
           </p>
         </section>
@@ -531,8 +535,8 @@ export default function CheckoutForm({
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className={`text-right text-[13px] ${strong ? "font-extrabold text-navy" : "font-semibold text-slate-700"}`}>
+      <span className="text-xs text-muted">{label}</span>
+      <span className={`text-right text-[13px] ${strong ? "font-extrabold text-warm" : "font-semibold text-warm-dim"}`}>
         {value}
       </span>
     </div>
@@ -542,8 +546,8 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 function Line({ label, value, tone }: { label: string; value: string; tone?: "red" }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className={`text-sm font-semibold ${tone === "red" ? "text-red-600" : "text-slate-700"}`}>
+      <span className="text-xs text-muted">{label}</span>
+      <span className={`text-sm font-semibold ${tone === "red" ? "text-bad" : "text-warm-dim"}`}>
         {value}
       </span>
     </div>

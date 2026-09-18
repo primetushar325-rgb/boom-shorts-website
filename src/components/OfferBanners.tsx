@@ -28,22 +28,22 @@ export default function OfferBanners({ banners }: { banners: BannerItem[] }) {
                   loading="lazy"
                 />
               ) : null}
-              <div className={`flex flex-1 flex-col p-4 ${banner.imageUrl ? "" : "bg-gradient-to-br from-blue-600 to-navy"}`}>
+              <div className={`flex flex-1 flex-col p-4 ${banner.imageUrl ? "" : "bg-gradient-to-br from-charcoal to-ink"}`}>
                 {banner.type === "offer" ? (
-                  <span className="badge mb-2 w-fit bg-red-600 text-white">OFFER</span>
+                  <span className="badge-bestseller mb-2 w-fit">OFFER</span>
                 ) : null}
                 {banner.title ? (
-                  <p className={`text-sm font-extrabold ${banner.imageUrl ? "text-navy" : "text-white"}`}>
+                  <p className="text-sm font-extrabold text-warm">
                     {banner.title}
                   </p>
                 ) : null}
                 {banner.description ? (
-                  <p className={`mt-1 text-xs leading-relaxed ${banner.imageUrl ? "text-slate-500" : "text-blue-100"}`}>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
                     {banner.description}
                   </p>
                 ) : null}
                 {target && banner.buttonText ? (
-                  <span className={`btn mt-3 w-fit px-4 py-2 text-xs ${banner.imageUrl ? "btn-primary" : "bg-white text-navy hover:bg-blue-50"}`}>
+                  <span className="btn-gold btn-shine mt-3 w-fit px-4 py-2 text-xs">
                     {banner.buttonText}
                   </span>
                 ) : null}

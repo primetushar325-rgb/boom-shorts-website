@@ -5,6 +5,8 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { packages } from "@/db/schema";
 import { normalizePackagePricing } from "@/lib/pricing";
 import { isAdminAuthed } from "@/lib/session";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export const dynamic = "force-dynamic";
 
@@ -69,5 +71,6 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
+  revalidatePublicContent(PUBLIC_TAGS.packages);
   return NextResponse.json({ package: created }, { status: 201 });
 }

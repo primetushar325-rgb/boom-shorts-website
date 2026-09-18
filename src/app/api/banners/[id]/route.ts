@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { banners } from "@/db/schema";
 import { isAdminAuthed } from "@/lib/session";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .returning();
 
   if (!updated) return NextResponse.json({ error: "Banner not found" }, { status: 404 });
+  revalidatePublicContent(PUBLIC_TAGS.banners);
   return NextResponse.json({ banner: updated });
 }
 
@@ -52,5 +55,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   await db.delete(banners).where(eq(banners.id, bannerId));
+  revalidatePublicContent(PUBLIC_TAGS.banners);
   return NextResponse.json({ ok: true });
 }

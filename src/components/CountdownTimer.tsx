@@ -46,12 +46,12 @@ export default function CountdownTimer({ endsAt }: { endsAt: string }) {
       {units.map((unit) => (
         <div
           key={unit.label}
-          className="flex min-w-[52px] flex-col items-center rounded-xl border border-amber-200 bg-white px-2.5 py-1.5"
+          className="flex min-w-[52px] flex-col items-center rounded-xl border border-gold-line bg-coal px-2.5 py-1.5"
         >
-          <span className="text-base font-extrabold tabular-nums text-navy">
+          <span className="text-base font-extrabold tabular-nums text-warm">
             {String(unit.value).padStart(2, "0")}
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">
             {unit.label}
           </span>
         </div>

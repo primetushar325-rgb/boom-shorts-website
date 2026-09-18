@@ -4,6 +4,8 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { sections } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAdminAuthed } from "@/lib/requireAdmin";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureSchema();
@@ -23,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .returning();
 
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  revalidatePublicContent(PUBLIC_TAGS.sections);
   return NextResponse.json({ section: updated });
 }
 
@@ -34,5 +37,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   await db.delete(sections).where(eq(sections.id, Number(id)));
+  revalidatePublicContent(PUBLIC_TAGS.sections);
   return NextResponse.json({ ok: true });
 }

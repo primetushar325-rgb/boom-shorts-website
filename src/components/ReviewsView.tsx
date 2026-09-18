@@ -15,9 +15,9 @@ export type PublicReview = {
 
 function Stars({ value }: { value: number }) {
   return (
-    <span className="text-amber-500" aria-label={`${value} out of 5`}>
+    <span className="text-gold" aria-label={`${value} out of 5`}>
       {"★".repeat(Math.max(0, Math.min(5, value)))}
-      <span className="text-slate-200">
+      <span className="text-muted-2">
         {"★".repeat(Math.max(0, 5 - Math.min(5, value)))}
       </span>
     </span>
@@ -83,7 +83,7 @@ export default function ReviewsView({
   return (
     <div className="flex flex-col gap-5">
       <section className="card p-4 sm:p-5">
-        <p className="text-sm font-extrabold text-navy">Write a review</p>
+        <p className="text-sm font-extrabold text-warm">Write a review</p>
         {customer ? (
           <form onSubmit={submit} className="mt-3 flex flex-col gap-3">
             <div>
@@ -96,7 +96,7 @@ export default function ReviewsView({
                     onClick={() => setRating(value)}
                     aria-label={`${value} star`}
                     className={`text-2xl leading-none transition ${
-                      value <= rating ? "text-amber-500" : "text-slate-200"
+                      value <= rating ? "text-gold" : "text-muted-2"
                     }`}
                   >
                     ★
@@ -145,8 +145,8 @@ export default function ReviewsView({
               <p
                 className={`rounded-xl px-3 py-2 text-xs font-semibold ${
                   status.kind === "ok"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-red-50 text-red-600"
+                    ? "bg-ok-soft text-ok"
+                    : "bg-bad-soft text-bad"
                 }`}
               >
                 {status.text}
@@ -156,13 +156,13 @@ export default function ReviewsView({
             <button type="submit" disabled={busy} className="btn-primary w-full">
               {busy ? "Submitting…" : "Submit review"}
             </button>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-muted-2">
               Posted as {customer.name || "you"}. Reviews are published after admin approval.
             </p>
           </form>
         ) : (
-          <div className="mt-3 rounded-xl bg-slate-50 p-4 text-center">
-            <p className="text-xs text-slate-500">
+          <div className="mt-3 rounded-xl bg-white/5 p-4 text-center">
+            <p className="text-xs text-muted">
               Sign in with your WhatsApp number and PIN to write a review.
             </p>
             <Link href="/profile" className="btn-primary mt-3 px-4 py-2.5 text-xs">
@@ -174,16 +174,16 @@ export default function ReviewsView({
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-extrabold text-navy">
+          <h2 className="text-sm font-extrabold text-warm">
             Customer reviews {reviews.length > 0 ? `(${reviews.length})` : ""}
           </h2>
-          <Link href="/" className="text-xs font-bold text-blue-600">
+          <Link href="/" className="text-xs font-bold text-gold">
             Order now →
           </Link>
         </div>
 
         {reviews.length === 0 ? (
-          <div className="card p-6 text-center text-sm text-slate-400">
+          <div className="card p-6 text-center text-sm text-muted-2">
             No reviews published yet — be the first to write one.
           </div>
         ) : (
@@ -191,20 +191,20 @@ export default function ReviewsView({
             <article key={review.id} className="card p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-gold-soft text-xs font-bold text-gold-light">
                     {review.name.slice(0, 1).toUpperCase()}
                   </span>
                   <div>
-                    <p className="text-[13px] font-bold text-navy">{review.name}</p>
+                    <p className="text-[13px] font-bold text-warm">{review.name}</p>
                     {review.packageName ? (
-                      <p className="text-[11px] text-slate-400">{review.packageName}</p>
+                      <p className="text-[11px] text-muted-2">{review.packageName}</p>
                     ) : null}
                   </div>
                 </div>
                 <Stars value={review.rating} />
               </div>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-slate-600">{review.message}</p>
-              <p className="mt-2 text-[11px] text-slate-400">{formatDateTime(review.createdAt)}</p>
+              <p className="mt-2.5 text-[13px] leading-relaxed text-warm-dim">{review.message}</p>
+              <p className="mt-2 text-[11px] text-muted-2">{formatDateTime(review.createdAt)}</p>
             </article>
           ))
         )}

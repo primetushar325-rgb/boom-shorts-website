@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
@@ -8,7 +9,15 @@ export type Settings = typeof settings.$inferSelect;
 
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_DEFAULT_PASSWORD || "admin123";
 
-export async function getSettings(): Promise<Settings> {
+/**
+ * Per-request memoized settings read.
+ *
+ * The layout and the page both need settings; `React.cache` de-duplicates that
+ * into a single query per request instead of two.
+ */
+export const getSettings = cache(getSettingsUncached);
+
+async function getSettingsUncached(): Promise<Settings> {
   await ensureSchema();
 
   const rows = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);

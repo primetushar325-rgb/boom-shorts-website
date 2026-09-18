@@ -90,9 +90,9 @@ export function AdminScreen({
     <section className={`admin-screen ${active ? "flex" : "hidden lg:flex"} lg:max-h-[calc(100vh-8.5rem)]`}>
       <header className="admin-screen-head">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-600">{label}</p>
-          <h2 className="truncate text-sm font-extrabold text-navy">{title}</h2>
-          {subtitle ? <p className="truncate text-[11px] text-slate-400">{subtitle}</p> : null}
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">{label}</p>
+          <h2 className="truncate text-sm font-extrabold text-warm">{title}</h2>
+          {subtitle ? <p className="truncate text-[11px] text-muted-2">{subtitle}</p> : null}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </header>
@@ -109,7 +109,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
     <label className="flex flex-col">
       <span className="label">{label}</span>
       {children}
-      {hint ? <span className="mt-1 text-[11px] text-slate-400">{hint}</span> : null}
+      {hint ? <span className="mt-1 text-[11px] text-muted-2">{hint}</span> : null}
     </label>
   );
 }
@@ -170,17 +170,17 @@ export function Toggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left"
+      className="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-coal px-3 py-2.5 text-left"
       aria-pressed={checked}
     >
-      <span className="text-[13px] font-semibold text-slate-700">{label}</span>
+      <span className="text-[13px] font-semibold text-warm-dim">{label}</span>
       <span
         className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? "bg-emerald-500" : "bg-slate-200"
+          checked ? "bg-ok" : "bg-slate-200"
         }`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-coal shadow transition ${
             checked ? "left-[1.375rem]" : "left-0.5"
           }`}
         />
@@ -190,20 +190,20 @@ export function Toggle({
 }
 
 const STATUS_CLASSES: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  payment_verified: "bg-blue-100 text-blue-700",
+  pending: "bg-gold-soft text-gold-light",
+  payment_verified: "bg-gold-soft text-gold-light",
   processing: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-slate-200 text-slate-600",
-  rejected: "bg-red-100 text-red-700",
-  verified: "bg-emerald-100 text-emerald-700",
-  approved: "bg-emerald-100 text-emerald-700",
+  completed: "bg-emerald-100 text-ok",
+  cancelled: "bg-white/10 text-warm-dim",
+  rejected: "bg-red-100 text-bad",
+  verified: "bg-emerald-100 text-ok",
+  approved: "bg-emerald-100 text-ok",
 };
 
 export function StatusPill({ value }: { value: string }) {
   const label = value.replace(/_/g, " ");
   return (
-    <span className={`badge ${STATUS_CLASSES[value] ?? "bg-slate-100 text-slate-600"} capitalize`}>
+    <span className={`badge ${STATUS_CLASSES[value] ?? "bg-white/5 text-warm-dim"} capitalize`}>
       {label}
     </span>
   );
@@ -211,7 +211,7 @@ export function StatusPill({ value }: { value: string }) {
 
 export function Stars({ value }: { value: number }) {
   return (
-    <span className="text-amber-500" aria-label={`${value} of 5`}>
+    <span className="text-gold" aria-label={`${value} of 5`}>
       {"★".repeat(Math.max(0, Math.min(5, value)))}
     </span>
   );
@@ -219,15 +219,15 @@ export function Stars({ value }: { value: number }) {
 
 export function EmptyState({ text, action }: { text: string; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-      <p className="text-xs text-slate-400">{text}</p>
+    <div className="rounded-2xl border border-dashed border-line bg-white/5 px-4 py-8 text-center">
+      <p className="text-xs text-muted-2">{text}</p>
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }
 
 export function Loading({ text = "Loading…" }: { text?: string }) {
-  return <p className="py-8 text-center text-xs text-slate-400">{text}</p>;
+  return <p className="py-8 text-center text-xs text-muted-2">{text}</p>;
 }
 
 export function Notice({ kind, text }: { kind: "ok" | "error"; text: string }) {
@@ -235,7 +235,7 @@ export function Notice({ kind, text }: { kind: "ok" | "error"; text: string }) {
   return (
     <p
       className={`rounded-xl px-3 py-2 text-[11px] font-semibold ${
-        kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+        kind === "ok" ? "bg-ok-soft text-ok" : "bg-bad-soft text-bad"
       }`}
     >
       {text}
@@ -267,10 +267,10 @@ export function ImageField({
           <img
             src={value}
             alt=""
-            className="h-14 w-14 shrink-0 rounded-xl border border-slate-200 object-cover"
+            className="h-14 w-14 shrink-0 rounded-xl border border-line object-cover"
           />
         ) : (
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-dashed border-slate-300 text-slate-300">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-dashed border-slate-300 text-muted-2">
             🖼
           </span>
         )}
@@ -278,7 +278,7 @@ export function ImageField({
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif"
-            className="input file:mr-2 file:rounded-lg file:border-0 file:bg-blue-600 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-white"
+            className="input file:mr-2 file:rounded-lg file:border-0 file:bg-gold file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-white"
             onChange={async (event) => {
               const file = event.target.files?.[0];
               if (!file) return;
@@ -298,9 +298,9 @@ export function ImageField({
               }
             }}
           />
-          {busy ? <p className="mt-1 text-[11px] text-slate-400">Uploading…</p> : null}
-          {error ? <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p> : null}
-          {hint ? <p className="mt-1 text-[11px] text-slate-400">{hint}</p> : null}
+          {busy ? <p className="mt-1 text-[11px] text-muted-2">Uploading…</p> : null}
+          {error ? <p className="mt-1 text-[11px] font-semibold text-bad">{error}</p> : null}
+          {hint ? <p className="mt-1 text-[11px] text-muted-2">{hint}</p> : null}
         </div>
       </div>
     </div>

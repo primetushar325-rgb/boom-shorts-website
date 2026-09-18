@@ -12,7 +12,7 @@ export default function GallerySection({ items }: { items: GalleryItem[] }) {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {items.map((item) => (
-          <figure key={item.id} className="group relative overflow-hidden rounded-2xl border border-slate-200">
+          <figure key={item.id} className="group relative overflow-hidden rounded-2xl border border-line">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl}

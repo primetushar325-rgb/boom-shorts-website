@@ -429,19 +429,19 @@ export function CollectionPanel({
         active={activeScreen === 0}
       >
         <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-lg font-extrabold text-navy">{rows.length}</p>
-            <p className="text-[11px] text-slate-500">Total items</p>
+          <div className="rounded-2xl border border-line bg-white/5 p-3">
+            <p className="text-lg font-extrabold text-warm">{rows.length}</p>
+            <p className="text-[11px] text-muted">Total items</p>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-lg font-extrabold text-emerald-700">
+          <div className="rounded-2xl border border-ok bg-ok-soft p-3">
+            <p className="text-lg font-extrabold text-ok">
               {rows.filter((row) => row.visible !== false).length}
             </p>
-            <p className="text-[11px] text-emerald-700">Visible on site</p>
+            <p className="text-[11px] text-ok">Visible on site</p>
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
           Use the list screen to edit an item, or the editor screen to add a new one. Changes appear
           on the website instantly.
         </p>
@@ -480,14 +480,14 @@ export function CollectionPanel({
                 key={String(row.id)}
                 type="button"
                 onClick={() => startEdit(row)}
-                className={`row-tap ${editingId === row.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+                className={`row-tap ${editingId === row.id ? "border-gold ring-1 ring-gold-line" : ""}`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="line-clamp-1 block text-[13px] font-bold text-navy">
+                  <span className="line-clamp-1 block text-[13px] font-bold text-warm">
                     {config.listTitle(row)}
                   </span>
                   {config.listSubtitle ? (
-                    <span className="line-clamp-1 mt-0.5 block text-[11px] text-slate-500">
+                    <span className="line-clamp-1 mt-0.5 block text-[11px] text-muted">
                       {config.listSubtitle(row)}
                     </span>
                   ) : null}
@@ -513,7 +513,7 @@ export function CollectionPanel({
           <img
             src={previewImage}
             alt=""
-            className="mb-3 h-28 w-full rounded-2xl border border-slate-200 object-cover"
+            className="mb-3 h-28 w-full rounded-2xl border border-line object-cover"
           />
         ) : null}
 
@@ -528,7 +528,7 @@ export function CollectionPanel({
           ))}
 
           {editingId ? (
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-muted-2">
               Created {formatDateTime(String(form.createdAt ?? ""))}
             </p>
           ) : null}
@@ -694,13 +694,13 @@ export function SettingsPanel({ activeScreen }: { activeScreen: number }) {
               key={item.id}
               type="button"
               onClick={() => setGroup(item.id)}
-              className={`row-tap ${group === item.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+              className={`row-tap ${group === item.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">
                 {item.icon}
               </span>
-              <span className="flex-1 text-[13px] font-bold text-navy">{item.label}</span>
-              <span className="text-slate-300">›</span>
+              <span className="flex-1 text-[13px] font-bold text-warm">{item.label}</span>
+              <span className="text-muted-2">›</span>
             </button>
           ))}
         </div>
@@ -712,17 +712,17 @@ export function SettingsPanel({ activeScreen }: { activeScreen: number }) {
         subtitle="Pick a group to edit"
         active={activeScreen === 1}
       >
-        <p className="text-[11px] leading-relaxed text-slate-500">
+        <p className="text-[11px] leading-relaxed text-muted">
           Everything here is stored in your existing settings table. Changes apply immediately —
           no redeploy needed.
         </p>
         <div className="mt-3 flex flex-col gap-2">
           {SETTINGS_GROUPS.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 p-3">
-              <p className="text-[13px] font-bold text-navy">
+            <div key={item.id} className="rounded-2xl border border-line p-3">
+              <p className="text-[13px] font-bold text-warm">
                 {item.icon} {item.label}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-400">
+              <p className="mt-0.5 text-[11px] text-muted-2">
                 {item.fields.length} setting{item.fields.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -858,20 +858,20 @@ export function VideosPanel({ activeScreen }: { activeScreen: number }) {
         {loading ? <Loading /> : null}
         <Notice kind="error" text={error} />
         <div className="grid grid-cols-2 gap-2.5">
-          <div className={`rounded-2xl border p-3 ${values.youtubeVideoUrl ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-            <p className="text-[11px] font-bold text-slate-500">Featured video</p>
-            <p className="mt-1 text-[12px] font-bold text-navy">
+          <div className={`rounded-2xl border p-3 ${values.youtubeVideoUrl ? "border-ok bg-ok-soft" : "border-line bg-white/5"}`}>
+            <p className="text-[11px] font-bold text-muted">Featured video</p>
+            <p className="mt-1 text-[12px] font-bold text-warm">
               {values.youtubeVideoUrl ? "Configured ✓" : "Not set"}
             </p>
           </div>
-          <div className={`rounded-2xl border p-3 ${values.demoVideoUrl ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-            <p className="text-[11px] font-bold text-slate-500">Demo video</p>
-            <p className="mt-1 text-[12px] font-bold text-navy">
+          <div className={`rounded-2xl border p-3 ${values.demoVideoUrl ? "border-ok bg-ok-soft" : "border-line bg-white/5"}`}>
+            <p className="text-[11px] font-bold text-muted">Demo video</p>
+            <p className="mt-1 text-[12px] font-bold text-warm">
               {values.demoVideoUrl ? "Configured ✓" : "Not set"}
             </p>
           </div>
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
           Invalid or empty URLs are ignored on the website — the section simply hides instead of
           breaking the page. Package demo videos are edited inside each package.
         </p>
@@ -889,23 +889,23 @@ export function VideosPanel({ activeScreen }: { activeScreen: number }) {
               key={item.id}
               type="button"
               onClick={() => setSlot(item.id)}
-              className={`row-tap ${slot === item.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+              className={`row-tap ${slot === item.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100">🎬</span>
-              <span className="flex-1 text-[13px] font-bold text-navy">{item.label}</span>
-              <span className="text-slate-300">›</span>
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">🎬</span>
+              <span className="flex-1 text-[13px] font-bold text-warm">{item.label}</span>
+              <span className="text-muted-2">›</span>
             </button>
           ))}
         </div>
 
-        <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+        <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-muted-2">
           Package demo videos
         </p>
         <div className="mt-2 flex flex-col gap-2">
           {packages.map((pkg) => (
-            <div key={pkg.id} className="rounded-2xl border border-slate-200 p-3">
-              <p className="text-[12px] font-bold text-navy">{pkg.name}</p>
-              <p className="mt-0.5 truncate text-[11px] text-slate-400">
+            <div key={pkg.id} className="rounded-2xl border border-line p-3">
+              <p className="text-[12px] font-bold text-warm">{pkg.name}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-2">
                 {pkg.demoVideoUrl || "no demo video"}
               </p>
             </div>
@@ -933,7 +933,7 @@ export function VideosPanel({ activeScreen }: { activeScreen: number }) {
           <Button onClick={save} disabled={saving}>
             {saving ? "Saving…" : "💾 Save videos"}
           </Button>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-muted-2">
             Tip: use https://youtu.be/VIDEO_ID or the full watch URL — both work.
           </p>
         </div>

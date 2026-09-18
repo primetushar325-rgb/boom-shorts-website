@@ -33,6 +33,19 @@ npm run lint        # eslint .
 npm run build       # next build (production)
 ```
 
+End-to-end suite (runs against a *running* server and creates then removes test
+rows — never point it at production):
+
+```bash
+npm run build && npm start          # terminal 1
+E2E_ALLOW_WRITES=1 npm run test:e2e # terminal 2 (defaults to http://127.0.0.1:3000)
+```
+
+It covers public pages, admin auth, server-side package pricing (percent + fixed),
+coupons (valid/expired/min-order), order creation, duplicate-submit protection,
+customer isolation, review moderation, the admin order/payment flow, screenshot
+privacy and homepage rendering.
+
 ## Environment variables
 
 | Name | Required | Purpose |

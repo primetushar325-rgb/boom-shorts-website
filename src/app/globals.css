@@ -50,11 +50,32 @@ html {
 body {
   background-color: #050505;
   color: var(--color-warm-dim);
+  /* `clip` (not `hidden`) stops horizontal overflow without turning <body> into
+     a scroll container — a nested scroller on a phone means the compositor
+     cannot hand the page to the fast scrolling path. */
   overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* --------------------------------------------------------------------------
+   Ambient gold wash.
+
+   This used to be `background-image` + `background-attachment: fixed` on
+   <body>. On Android Chrome that single declaration forces the whole page
+   background to be re-painted on every scroll frame and blocks compositor
+   scrolling, which is exactly the "stuck / stuttering" feeling. A fixed
+   pseudo-element paints once into its own layer and looks identical, because
+   the gradients are still positioned against the viewport.
+   -------------------------------------------------------------------------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(74% 42% at 50% -6%, rgba(212, 175, 55, 0.11) 0%, rgba(212, 175, 55, 0) 62%),
     radial-gradient(38% 26% at 96% 8%, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0) 70%);
-  background-attachment: fixed;
   background-repeat: no-repeat;
 }
 
@@ -367,11 +388,33 @@ body {
     color: var(--color-warm-dim);
   }
 
+  /* ---------------------------- Site header ---------------------------- */
+  /* `backdrop-filter: blur()` on a *sticky* element is re-computed on every
+     scroll frame against whatever is behind it — one of the most expensive
+     things a phone can be asked to do. On small screens the bar is simply
+     near-opaque instead (visually almost identical on a black theme) and the
+     blur is restored from `sm:` up where GPUs handle it comfortably. */
+  .site-header {
+    @apply sticky top-0 z-40 border-b;
+    border-color: rgba(212, 175, 55, 0.22);
+    background: rgba(5, 5, 5, 0.97);
+  }
+  @media (min-width: 640px) {
+    .site-header {
+      background: rgba(5, 5, 5, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+  }
+
   /* ---------------------------- Bottom nav ---------------------------- */
   .bottom-nav {
-    @apply fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur;
+    @apply fixed inset-x-0 bottom-0 z-40 border-t;
     border-color: rgba(212, 175, 55, 0.18);
-    background: rgba(8, 8, 10, 0.94);
+    /* Opaque rather than blurred: this bar is `sm:hidden`, so it only ever
+       appears on phones, where a live blur over scrolling content costs more
+       than the effect is worth. */
+    background: rgba(8, 8, 10, 0.98);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .bottom-nav-item {
@@ -383,8 +426,13 @@ body {
   }
 
   /* ---------------------------- Admin shell ---------------------------- */
+  /* On phones the whole page scrolls natively: the panel must NOT become a
+     second scroll container, otherwise the finger scroll gets captured by an
+     inner box that is only a few hundred px tall and the page feels stuck.
+     The three-column desktop dashboard keeps its own inner scroll, because
+     there the panels are deliberately height-capped side by side. */
   .admin-screen {
-    @apply flex h-full w-full flex-col overflow-hidden rounded-3xl border;
+    @apply flex w-full min-w-0 flex-col rounded-3xl border;
     border-color: rgba(212, 175, 55, 0.2);
     background: linear-gradient(180deg, #131315 0%, #0b0b0d 100%);
     box-shadow:
@@ -396,7 +444,15 @@ body {
     border-color: var(--color-line-soft);
   }
   .admin-screen-body {
-    @apply flex-1 overflow-y-auto overscroll-contain px-4 py-3;
+    @apply min-w-0 flex-1 px-4 py-3;
+  }
+  @media (min-width: 1024px) {
+    .admin-screen {
+      @apply h-full overflow-hidden;
+    }
+    .admin-screen-body {
+      @apply overflow-y-auto overscroll-contain;
+    }
   }
   .admin-tab {
     @apply flex-1 rounded-xl px-3 py-2 text-xs font-bold transition;
@@ -444,35 +500,44 @@ body {
   }
 }
 
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
+/* There is deliberately no `marquee` keyframe here any more: a continuous
+   horizontal scroll animation never stops, so it keeps the compositor busy for
+   the whole time the page is open and is one of the things that made the notice
+   strip feel like it was fighting the vertical scroll. The notice board is a
+   static row of chips now (see NoticeBoard.tsx). */
 
 /* --------------------------------------------------------------------------
    LOGO — premium breathing glow (7s cycle).
    Glow rises, holds briefly, fades, then rests. No spin, no bounce.
+
+   Only `opacity` and `transform` animate. The previous version animated
+   `filter: drop-shadow() brightness()`, which is NOT compositor-friendly:
+   Chrome had to repaint the element on every frame, and because the logo lives
+   inside the *sticky* header that repaint happened while the user scrolled.
+   The glow is now a separate radial-gradient layer whose opacity is animated,
+   which runs entirely on the compositor thread.
    -------------------------------------------------------------------------- */
 @keyframes logo-breathe {
   0% {
-    filter: drop-shadow(0 0 0 rgba(212, 175, 55, 0)) brightness(1);
+    opacity: 0;
+    transform: scale(0.94);
   }
   14% {
-    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.5)) brightness(1.06);
+    opacity: 0.5;
+    transform: scale(1);
   }
   26% {
-    filter: drop-shadow(0 0 16px rgba(245, 215, 110, 0.62)) brightness(1.1);
+    opacity: 0.85;
+    transform: scale(1.05);
   }
   40% {
-    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.45)) brightness(1.05);
+    opacity: 0.45;
+    transform: scale(1);
   }
   55%,
   100% {
-    filter: drop-shadow(0 0 0 rgba(212, 175, 55, 0)) brightness(1);
+    opacity: 0;
+    transform: scale(0.94);
   }
 }
 
@@ -495,9 +560,24 @@ body {
   }
 }
 
-.logo-breathe {
+/* The animated glow layer itself — sits behind the logo mark and is the only
+   thing that moves, so the mark never has to be repainted. */
+.logo-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(245, 215, 110, 0.55) 0%,
+    rgba(212, 175, 55, 0.3) 40%,
+    rgba(212, 175, 55, 0) 70%
+  );
+  opacity: 0;
   animation: logo-breathe 7s ease-in-out infinite;
-  will-change: filter;
+  /* Correct use of will-change: a single small element that really does
+     animate forever, promoted once so the animation stays off the main thread. */
+  will-change: opacity, transform;
 }
 
 .logo-glint::after {
@@ -515,7 +595,6 @@ body {
     transparent 64%
   );
   animation: logo-glint 7s ease-in-out infinite;
-  will-change: transform, opacity;
 }
 
 /* --------------------------------------------------------------------------
@@ -569,7 +648,6 @@ body {
     transparent 100%
   );
   animation: btn-sweep 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: transform, opacity;
 }
 /* Gold-bodied buttons get a warmer, slightly softer sweep */
 .btn-gold.btn-shine::after {
@@ -589,6 +667,15 @@ body {
 .btn-shine-delay-2::after {
   animation-delay: 3.2s;
 }
+/* The homepage shows nine of these CTAs at once. On a phone every infinite
+   animation owns a compositor layer for the whole session, so the ambient
+   sweep is desktop-only; touch devices keep a calm, static gold button. */
+@media (hover: none), (pointer: coarse) {
+  .btn-shine::after {
+    animation: none;
+    opacity: 0;
+  }
+}
 
 /* Soft ambient gold pulse for hero accents */
 @keyframes gold-pulse {
@@ -607,9 +694,6 @@ body {
 .animate-fade-in-up {
   animation: fade-in-up 0.5s ease-out both;
 }
-.animate-marquee {
-  animation: marquee 32s linear infinite;
-}
 .animate-gold-pulse {
   animation: gold-pulse 6s ease-in-out infinite;
 }
@@ -618,12 +702,17 @@ body {
    Reduced motion — every decorative animation stops.
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee,
   .animate-fade-in-up,
   .animate-fade-in,
-  .animate-gold-pulse,
-  .logo-breathe {
+  .animate-gold-pulse {
     animation: none !important;
+  }
+  /* The logo keeps a soft static glow instead of breathing. */
+  .logo-glow {
+    animation: none !important;
+    opacity: 0.4 !important;
+    transform: none !important;
+    will-change: auto !important;
   }
   .logo-glint::after,
   .btn-shine::after {
@@ -636,6 +725,9 @@ body {
   *,
   *::before,
   *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "./index";
+import { db, pool } from "./index";
 
 /**
  * Runtime, idempotent schema sync.
@@ -8,6 +8,22 @@ import { db } from "./index";
  * migration step in the pipeline. Every statement below is additive and
  * guarded (`IF NOT EXISTS` / conditional UPDATE), so it is safe to run on the
  * existing production database: no table is dropped, no row is deleted.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THERE IS A FAST PATH
+ * ---------------------------------------------------------------------------
+ * The full sync is ~66 statements. Executed one-by-one that is ~66 sequential
+ * round-trips to the database on *every* serverless cold start — measured at
+ * ~0.35 ms each on localhost, i.e. ~340 ms at 5 ms/query and ~1.4 s at
+ * 20 ms/query (Vercel → Supabase pooler). Because every dynamic route awaits
+ * `ensureSchema()` first, that latency landed directly on:
+ *
+ *   • GET  /checkout/[id]        → "Order Now" felt dead on the first tap
+ *   • POST /api/orders           → order submit timeouts / generic 500
+ *   • POST /api/customer/register→ "Network Problem"
+ *
+ * So on an already-migrated database we now run ONE probe query against the
+ * catalog. Only when the probe reports something missing do we execute the DDL.
  *
  * It runs once per server process (the promise is cached, and also cached on
  * globalThis so dev hot-reloads don't re-run it) and never throws — a failing
@@ -176,6 +192,38 @@ const SCHEMA_STATEMENTS: string[] = [
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "customers_phone_uidx" ON "customers" ("phone")`,
 
+  // ---- order idempotency (database-level duplicate-submit protection) ------
+  // One payment (same WhatsApp number + same transaction ID) can only ever own
+  // one order. The key is claimed inside the same transaction as the order
+  // INSERT, so two simultaneous checkouts can never both succeed: the loser
+  // hits the primary key and the server returns the already-created order.
+  // A separate table (rather than a unique index on `orders`) is used so that
+  // historical rows are never touched — CREATE UNIQUE INDEX on orders would
+  // fail if the old race already produced a duplicate pair.
+  `CREATE TABLE IF NOT EXISTS "order_idempotency_keys" (
+     "idempotency_key" text PRIMARY KEY NOT NULL,
+     "order_id" integer NOT NULL
+       CONSTRAINT "order_idempotency_keys_order_id_fkey"
+       REFERENCES "orders"("id") ON DELETE CASCADE,
+     "created_at" timestamp with time zone DEFAULT now() NOT NULL
+   )`,
+  // Tables created by an earlier build lack the foreign key above. Without it,
+  // deleting an order (admin cleanup, tests) left the key pointing at nothing
+  // and that payment could never be submitted again. ADD CONSTRAINT has no
+  // IF NOT EXISTS form, hence the catalog guard; claims whose order row is
+  // already gone are dropped first, otherwise the FK cannot be attached.
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'order_idempotency_keys_order_id_fkey'
+     ) THEN
+       DELETE FROM "order_idempotency_keys" k
+        WHERE NOT EXISTS (SELECT 1 FROM "orders" o WHERE o."id" = k."order_id");
+       ALTER TABLE "order_idempotency_keys"
+         ADD CONSTRAINT "order_idempotency_keys_order_id_fkey"
+         FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE;
+     END IF;
+   END $$`,
+
   // ---- reviews (customer submitted, admin moderated) -----------------------
   `CREATE TABLE IF NOT EXISTS "reviews" (
      "id" serial PRIMARY KEY NOT NULL,
@@ -214,6 +262,11 @@ const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_status" text DEFAULT 'pending' NOT NULL`,
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "admin_note" text DEFAULT '' NOT NULL`,
   `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone DEFAULT now() NOT NULL`,
+  // customer's own note, sent along with the WhatsApp confirmation
+  `ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_note" text DEFAULT '' NOT NULL`,
+  // lookup paths used by the duplicate guard and the admin order list
+  `CREATE INDEX IF NOT EXISTS "orders_whatsapp_idx" ON "orders" ("whatsapp")`,
+  `CREATE INDEX IF NOT EXISTS "orders_transaction_id_idx" ON "orders" (lower("transaction_id"))`,
   // backfill (only touches rows that are still empty)
   `UPDATE "orders" SET "order_code" = 'BS-' || upper(substr(md5(random()::text || "id"::text), 1, 6)) WHERE "order_code" IS NULL`,
   `UPDATE "orders" SET "unit_price" = "price" WHERE "unit_price" IS NULL`,
@@ -262,16 +315,117 @@ const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE "free_video_cards" ENABLE ROW LEVEL SECURITY`,
 ];
 
-type Cache = { promise?: Promise<void> };
+const ALL_STATEMENTS = [...BASE_TABLES, ...SCHEMA_STATEMENTS];
 
-const globalForSchema = globalThis as typeof globalThis & {
-  __mbsSchemaSync?: Cache;
-};
+// ---------------------------------------------------------------------------
+// Fast path: one catalog query that proves the schema is already up to date.
+// Keep this list in sync with the statements above — anything the app depends
+// on must be probed, otherwise a missing piece would never be created.
+// ---------------------------------------------------------------------------
+const REQUIRED_COLUMNS: [table: string, column: string][] = [
+  ["packages", "discount_type"],
+  ["packages", "discount_value"],
+  ["packages", "best_seller"],
+  ["packages", "quantity_label"],
+  ["packages", "features"],
+  ["packages", "demo_video_url"],
+  ["packages", "available"],
+  ["packages", "show_on_home"],
+  ["orders", "order_code"],
+  ["orders", "customer_id"],
+  ["orders", "package_quantity"],
+  ["orders", "quantity"],
+  ["orders", "unit_price"],
+  ["orders", "original_price"],
+  ["orders", "discount_amount"],
+  ["orders", "coupon_discount"],
+  ["orders", "payment_number"],
+  ["orders", "payment_status"],
+  ["orders", "admin_note"],
+  ["orders", "updated_at"],
+  ["orders", "customer_note"],
+  ["coupons", "discount_type"],
+  ["coupons", "discount_value"],
+  ["coupons", "min_order"],
+  ["coupons", "usage_limit"],
+  ["coupons", "used_count"],
+  ["banners", "description"],
+  ["banners", "button_text"],
+  ["banners", "button_url"],
+  ["settings", "youtube_description"],
+  ["customers", "phone"],
+  ["customers", "pin_hash"],
+  ["reviews", "status"],
+  ["order_idempotency_keys", "idempotency_key"],
+  ["order_idempotency_keys", "order_id"],
+];
 
-async function run(): Promise<void> {
+const REQUIRED_INDEXES: string[] = [
+  "customers_phone_uidx",
+  "orders_order_code_uidx",
+  "reviews_status_idx",
+  "order_idempotency_keys_pkey",
+];
+
+/** Constraints the probe must see; missing ones make the sync batch run once. */
+const REQUIRED_CONSTRAINTS: string[] = ["order_idempotency_keys_order_id_fkey"];
+
+/** `true` when the catalog already has everything the app needs (one query). */
+async function schemaIsComplete(): Promise<boolean> {
+  const columnList = REQUIRED_COLUMNS.map(([table, column]) => `('${table}', '${column}')`).join(
+    ", ",
+  );
+  const indexList = REQUIRED_INDEXES.map((name) => `'${name}'`).join(", ");
+  const constraintList = REQUIRED_CONSTRAINTS.map((name) => `'${name}'`).join(", ");
+
+  // Table/column/index/constraint names above are hard-coded literals from this
+  // module, never user input, so interpolating them into the probe is safe.
+  const result = await db.execute(sql.raw(`
+    SELECT (
+      (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND (table_name, column_name) IN (VALUES ${columnList})) = ${REQUIRED_COLUMNS.length}
+      AND
+      (SELECT count(*) FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'i'
+          AND c.relname IN (${indexList})) = ${REQUIRED_INDEXES.length}
+      AND
+      (SELECT count(*) FROM pg_constraint
+        WHERE conname IN (${constraintList})) = ${REQUIRED_CONSTRAINTS.length}
+    ) AS complete
+  `));
+
+  // drizzle's node-postgres driver hands back the raw pg QueryResult.
+  const rows = (result as unknown as { rows?: { complete?: boolean }[] })?.rows;
+  return rows?.[0]?.complete === true;
+}
+
+/**
+ * Runs every statement in one round-trip using the simple query protocol
+ * (no bind parameters ⇒ Postgres accepts a multi-statement string). Returns
+ * false when the batch is rejected so the caller can fall back statement by
+ * statement, which keeps a single unsupported statement from blocking the rest.
+ */
+async function runBatched(): Promise<boolean> {
+  const script = ALL_STATEMENTS.map((statement) => statement.trim().replace(/;+\s*$/, "")).join(
+    ";\n",
+  );
+  const client = await pool.connect();
+  try {
+    await client.query(`${script};`);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    client.release();
+  }
+}
+
+async function runStatementByStatement(): Promise<void> {
   const failures: string[] = [];
 
-  for (const statement of [...BASE_TABLES, ...SCHEMA_STATEMENTS]) {
+  for (const statement of ALL_STATEMENTS) {
     try {
       await db.execute(sql.raw(statement));
     } catch (error) {
@@ -287,6 +441,28 @@ async function run(): Promise<void> {
     );
   }
 }
+
+async function run(): Promise<void> {
+  try {
+    if (await schemaIsComplete()) return;
+  } catch (error) {
+    // A catalog probe failure must not stop the sync; fall through to the DDL.
+    console.warn(
+      "[schema-sync] probe failed, running the full sync:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
+  if (!(await runBatched().catch(() => false))) {
+    await runStatementByStatement();
+  }
+}
+
+type Cache = { promise?: Promise<void> };
+
+const globalForSchema = globalThis as typeof globalThis & {
+  __mbsSchemaSync?: Cache;
+};
 
 export function ensureSchema(): Promise<void> {
   const cache = (globalForSchema.__mbsSchemaSync ??= {});

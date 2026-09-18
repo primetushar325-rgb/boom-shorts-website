@@ -17,6 +17,8 @@ import {
   Toggle,
   useApi,
 } from "@/components/admin/ui";
+import { ConfirmDialog } from "@/components/admin/ui";
+import { Plus, Save } from "lucide-react";
 
 type Pkg = {
   id: number;
@@ -191,9 +193,14 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
     await quickPatch(pkg, { sortOrder: pkg.sortOrder + direction }, "Order updated");
   }
 
+  const [pendingDelete, setPendingDelete] = useState<Pkg | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function remove(pkg: Pkg) {
-    if (!window.confirm(`Delete "${pkg.name}"?`)) return;
+    setDeleting(true);
     const result = await apiSend(`/api/packages/${pkg.id}`, "DELETE");
+    setDeleting(false);
+    setPendingDelete(null);
     if (result.ok) {
       setNotice("Package deleted");
       setForm(emptyForm);
@@ -258,7 +265,8 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
           className="mt-3 w-full"
           onClick={() => setForm({ ...emptyForm, category: tab, sortOrder: String(rows.length) })}
         >
-          ➕ Add new package
+          <Plus size={15} aria-hidden />
+          Add new package
         </Button>
 
         <p className="mt-2 text-[11px] leading-relaxed text-muted">
@@ -586,7 +594,14 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
 
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={save} disabled={saving}>
-              {saving ? "Saving…" : form.id ? "💾 Save changes" : "➕ Create package"}
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <Save size={15} aria-hidden />
+                  {form.id ? "Save changes" : "Create package"}
+                </>
+              )}
             </Button>
             <Button variant="outline" onClick={() => setForm({ ...emptyForm, category: tab })}>
               Clear form
@@ -594,12 +609,27 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
           </div>
 
           {form.id ? (
-            <Button variant="danger" onClick={() => remove(rows.find((pkg) => pkg.id === form.id)!)}>
+            <Button
+              variant="danger"
+              onClick={() => setPendingDelete(rows.find((pkg) => pkg.id === form.id) ?? null)}
+            >
               Delete this package
             </Button>
           ) : null}
         </div>
       </AdminScreen>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Delete "${pendingDelete?.name ?? ""}"?`}
+        message="Existing orders keep their stored package name and price; the package disappears from the catalogue and the homepage."
+        confirmLabel="Delete package"
+        busy={deleting}
+        onConfirm={() => {
+          if (pendingDelete) void remove(pendingDelete);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }

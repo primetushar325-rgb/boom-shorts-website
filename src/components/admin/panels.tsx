@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDateTime, taka } from "@/lib/format";
 import {
+  AdminIcon,
   AdminScreen,
   apiSend,
   Button,
+  ConfirmDialog,
   EmptyState,
   Loading,
   Notice,
@@ -15,25 +17,26 @@ import {
   TextInput,
   useApi,
 } from "@/components/admin/ui";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export const ADMIN_SECTIONS = [
-  { id: "dashboard", label: "Dashboard", icon: "📊", group: "Overview" },
-  { id: "orders", label: "Orders", icon: "🧾", group: "Sales" },
-  { id: "payments", label: "Payments", icon: "💳", group: "Sales" },
-  { id: "customers", label: "Customers", icon: "👥", group: "Sales" },
-  { id: "packages", label: "Packages", icon: "📦", group: "Catalog" },
-  { id: "videos", label: "Product Videos", icon: "🎬", group: "Catalog" },
-  { id: "coupons", label: "Coupons", icon: "🏷️", group: "Marketing" },
-  { id: "banners", label: "Banners", icon: "🖼️", group: "Marketing" },
-  { id: "notices", label: "Notice Board", icon: "📢", group: "Marketing" },
-  { id: "reviews", label: "Reviews", icon: "⭐", group: "Marketing" },
-  { id: "testimonials", label: "Testimonials", icon: "💬", group: "Content" },
-  { id: "proof-slides", label: "Client Proof", icon: "📸", group: "Content" },
-  { id: "gallery", label: "Gallery", icon: "🏞️", group: "Content" },
-  { id: "free-video", label: "Free Videos", icon: "🎁", group: "Content" },
-  { id: "faqs", label: "FAQ", icon: "❓", group: "Content" },
-  { id: "sections", label: "Custom Sections", icon: "🧩", group: "Content" },
-  { id: "settings", label: "Settings", icon: "⚙️", group: "System" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard", group: "Overview" },
+  { id: "orders", label: "Orders", icon: "orders", group: "Sales" },
+  { id: "payments", label: "Payments", icon: "payments", group: "Sales" },
+  { id: "customers", label: "Customers", icon: "customers", group: "Sales" },
+  { id: "packages", label: "Packages", icon: "packages", group: "Catalog" },
+  { id: "videos", label: "Product Videos", icon: "videos", group: "Catalog" },
+  { id: "coupons", label: "Coupons", icon: "coupons", group: "Marketing" },
+  { id: "banners", label: "Banners", icon: "banners", group: "Marketing" },
+  { id: "notices", label: "Notice Board", icon: "notices", group: "Marketing" },
+  { id: "reviews", label: "Reviews", icon: "reviews", group: "Marketing" },
+  { id: "testimonials", label: "Testimonials", icon: "testimonials", group: "Content" },
+  { id: "proof-slides", label: "Client Proof", icon: "proof-slides", group: "Content" },
+  { id: "gallery", label: "Gallery", icon: "gallery", group: "Content" },
+  { id: "free-video", label: "Free Videos", icon: "free-video", group: "Content" },
+  { id: "faqs", label: "FAQ", icon: "faqs", group: "Content" },
+  { id: "sections", label: "Custom Sections", icon: "sections", group: "Content" },
+  { id: "settings", label: "Settings", icon: "settings", group: "System" },
 ] as const;
 
 export type SectionId = (typeof ADMIN_SECTIONS)[number]["id"];
@@ -73,12 +76,12 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
 
   const stats = useMemo(
     () => [
-      { label: "Total orders", value: data?.totalOrders ?? 0, icon: "🧾" },
-      { label: "Pending", value: data?.pendingOrders ?? 0, icon: "⏳" },
-      { label: "Completed", value: data?.completedOrders ?? 0, icon: "✅" },
-      { label: "Revenue", value: taka(data?.revenue ?? 0), icon: "💰" },
-      { label: "Customers", value: data?.customers ?? 0, icon: "👥" },
-      { label: "Available packages", value: data?.availablePackages ?? 0, icon: "📦" },
+      { label: "Total orders", value: data?.totalOrders ?? 0, icon: "orders" },
+      { label: "Pending", value: data?.pendingOrders ?? 0, icon: "pending" },
+      { label: "Completed", value: data?.completedOrders ?? 0, icon: "completed" },
+      { label: "Revenue", value: taka(data?.revenue ?? 0), icon: "revenue" },
+      { label: "Customers", value: data?.customers ?? 0, icon: "customers" },
+      { label: "Available packages", value: data?.availablePackages ?? 0, icon: "packages" },
     ],
     [data],
   );
@@ -102,8 +105,8 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
         <div className="grid grid-cols-2 gap-2.5">
           {stats.map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-line bg-white/5 p-3">
-              <p className="text-base" aria-hidden>
-                {stat.icon}
+              <p className="text-gold" aria-hidden>
+                <AdminIcon name={stat.icon} size={16} />
               </p>
               <p className="mt-1 text-lg font-extrabold text-warm">{stat.value}</p>
               <p className="text-[11px] text-muted">{stat.label}</p>
@@ -142,8 +145,8 @@ export function DashboardPanel({ activeScreen }: { activeScreen: number }) {
         <div className="flex flex-col gap-2">
           {ADMIN_SECTIONS.filter((section) => section.id !== "dashboard").map((section) => (
             <Link key={section.id} href={`/admin/${section.id}`} className="row-tap">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">
-                {section.icon}
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-gold">
+                <AdminIcon name={section.icon} />
               </span>
               <span className="flex-1 text-[13px] font-bold text-warm">{section.label}</span>
               <span className="text-muted-2">›</span>
@@ -259,7 +262,7 @@ export function CustomersPanel({ activeScreen }: { activeScreen: number }) {
         active={activeScreen === 1}
       >
         <TextInput
-          placeholder="🔍 Search name or number"
+          placeholder="Search name or number"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="mb-3"
@@ -382,12 +385,20 @@ export function ReviewsPanel({ activeScreen }: { activeScreen: number }) {
     reload();
   }
 
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function remove(id: number) {
+    setDeleting(true);
     const result = await apiSend(`/api/admin/reviews/${id}`, "DELETE");
+    setDeleting(false);
+    setPendingDelete(null);
     if (result.ok) {
       setNotice("Review deleted");
       setSelected(null);
       reload();
+    } else {
+      setNotice(String(result.data.error ?? "Delete failed"));
     }
   }
 
@@ -483,12 +494,20 @@ export function ReviewsPanel({ activeScreen }: { activeScreen: number }) {
               </p>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button onClick={() => moderate(selected.id, "approved")}>✅ Approve</Button>
+              <Button onClick={() => moderate(selected.id, "approved")}>
+                <CheckCircle2 size={15} aria-hidden />
+                Approve
+              </Button>
               <Button variant="danger" onClick={() => moderate(selected.id, "rejected")}>
-                ⛔ Reject
+                <XCircle size={15} aria-hidden />
+                Reject
               </Button>
             </div>
-            <Button variant="outline" className="mt-2 w-full" onClick={() => remove(selected.id)}>
+            <Button
+              variant="outline"
+              className="mt-2 w-full"
+              onClick={() => setPendingDelete(selected.id)}
+            >
               Delete review
             </Button>
           </>

@@ -14,6 +14,7 @@ import {
   testimonials,
 } from "@/db/schema";
 import { ensureProofSlideSeed } from "@/lib/proofSeed";
+import { getSettings, publicSettings } from "@/lib/settings";
 
 /**
  * Cached read layer for *public* content only.
@@ -143,6 +144,26 @@ export const getPublicProofSlides = cached(
   "public-proof-slides",
   [PUBLIC_TAGS.proofSlides],
 );
+
+/**
+ * Public-safe settings (the admin password hash and visitor counter are
+ * stripped). The site shell and every public page need these on each request,
+ * and they are exactly the kind of anonymous-visitor data that is safe to cache;
+ * an admin save revalidates `public:settings` so a change still appears at once.
+ *
+ * Anything authenticated (admin auth, customer sessions, orders) keeps using the
+ * uncached `getSettings()` / direct queries.
+ */
+export const getPublicSettings = cached(
+  async () => {
+    const settings = await getSettings();
+    return publicSettings(settings);
+  },
+  "public-settings",
+  [PUBLIC_TAGS.settings],
+);
+
+export type PublicSettings = Awaited<ReturnType<typeof getPublicSettings>>;
 
 export const getPublicFreeVideoFlag = cached(
   async () => {

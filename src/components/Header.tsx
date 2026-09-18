@@ -24,13 +24,7 @@ export default function Header({
   const [open, setOpen] = useState(false);
 
   return (
-    <header
-      className="sticky top-0 z-40 border-b backdrop-blur"
-      style={{
-        borderColor: "rgba(212,175,55,0.22)",
-        background: "rgba(5,5,5,0.88)",
-      }}
-    >
+    <header className="site-header">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <BrandLogo src={logoUrl} alt={siteName} size={52} priority className="sm:!h-14 sm:!w-14" />

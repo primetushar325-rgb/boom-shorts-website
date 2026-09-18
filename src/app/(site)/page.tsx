@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { buildWhatsAppLink, taka } from "@/lib/format";
 import { computePackagePricing } from "@/lib/pricing";
-import { getSettings } from "@/lib/settings";
 import {
   getPublicBanners,
   getPublicFaqs,
@@ -12,6 +11,7 @@ import {
   getPublicPackages,
   getPublicProofSlides,
   getPublicSections,
+  getPublicSettings,
   getPublicTestimonials,
 } from "@/lib/publicContent";
 
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
 
   // Critical, above-the-fold data — fetched in parallel.
   const [allPackages, allNotices, allBanners, hasFreeVideos] = await Promise.all([
@@ -175,6 +175,7 @@ export default async function HomePage() {
           subtitle="High retention Boom Shorts crafted to go viral — pick the plan that fits your channel."
           packages={boomPackages}
           videoUrl={settings.boomVideoUrl}
+          videoThumbnailUrl={settings.boomVideoThumbnailUrl}
         />
 
         <PackagesSection
@@ -184,6 +185,7 @@ export default async function HomePage() {
           subtitle="Everything else your channel needs — from scroll-stopping thumbnails to full SEO optimization."
           packages={servicePackages}
           videoUrl={settings.serviceVideoUrl}
+          videoThumbnailUrl={settings.serviceVideoThumbnailUrl}
         />
 
         {/* 6. OTHER USEFUL SECTIONS — streamed, never blocking the paint above */}

@@ -17,6 +17,8 @@ import {
   Toggle,
   useApi,
 } from "@/components/admin/ui";
+import { AdminIcon, ConfirmDialog } from "@/components/admin/ui";
+import { Plus, Save } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Generic field renderer (shared by collections and settings)
@@ -408,13 +410,20 @@ export function CollectionPanel({
     }
   }
 
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   async function remove(id: number) {
-    if (!window.confirm("Delete this item?")) return;
+    setDeleting(true);
     const result = await apiSend(`${config.endpoint}/${id}`, "DELETE");
+    setDeleting(false);
+    setPendingDelete(null);
     if (result.ok) {
       setNotice("Deleted");
       setForm({ ...config.empty });
       reload();
+    } else {
+      setNotice(String(result.data.error ?? "Delete failed"));
     }
   }
 
@@ -454,7 +463,8 @@ export function CollectionPanel({
             setNotice("");
           }}
         >
-          ➕ Add new
+          <Plus size={15} aria-hidden />
+          Add new
         </Button>
       </AdminScreen>
 
@@ -537,7 +547,14 @@ export function CollectionPanel({
 
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={save} disabled={saving}>
-              {saving ? "Saving…" : editingId ? "💾 Save changes" : "➕ Create"}
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <Save size={15} aria-hidden />
+                  {editingId ? "Save changes" : "Create"}
+                </>
+              )}
             </Button>
             <Button variant="outline" onClick={() => setForm({ ...config.empty })}>
               Clear
@@ -545,12 +562,23 @@ export function CollectionPanel({
           </div>
 
           {editingId ? (
-            <Button variant="danger" onClick={() => remove(editingId)}>
+            <Button variant="danger" onClick={() => setPendingDelete(editingId)}>
               Delete
             </Button>
           ) : null}
         </div>
       </AdminScreen>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this item?"
+        message={`This ${config.title.toLowerCase()} entry is removed from the site immediately.`}
+        busy={deleting}
+        onConfirm={() => {
+          if (pendingDelete !== null) void remove(pendingDelete);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }
@@ -562,7 +590,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "brand",
     label: "Brand",
-    icon: "🏷️",
+    icon: "brand",
     fields: [
       { key: "siteName", label: "Website name", type: "text" },
       { key: "logoText", label: "Logo text", type: "text" },
@@ -572,7 +600,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "hero",
     label: "Hero section",
-    icon: "✨",
+    icon: "hero",
     fields: [
       { key: "heroBadgeText", label: "Top badge text", type: "text" },
       { key: "heroTitle", label: "Main headline", type: "textarea" },
@@ -582,7 +610,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "stats",
     label: "Statistics",
-    icon: "📈",
+    icon: "stats",
     fields: [
       { key: "statHappyClients", label: "Happy clients", type: "text" },
       { key: "statCompletedOrders", label: "Completed orders", type: "text" },
@@ -592,7 +620,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "contact",
     label: "Contact & social",
-    icon: "🔗",
+    icon: "contact",
     fields: [
       { key: "whatsappNumber", label: "WhatsApp number", type: "text", hint: "8801XXXXXXXXX (digits with country code)" },
       { key: "whatsappLink", label: "WhatsApp link", type: "text", hint: "Leave empty to build it automatically" },
@@ -604,7 +632,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "payment",
     label: "Payments",
-    icon: "💳",
+    icon: "payment",
     fields: [
       { key: "bkashNumber", label: "bKash number", type: "text" },
       { key: "nagadNumber", label: "Nagad number", type: "text" },
@@ -616,7 +644,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "videos",
     label: "Videos & offer",
-    icon: "🎬",
+    icon: "videos",
     fields: [
       { key: "youtubeVideoUrl", label: "Homepage featured video URL", type: "text" },
       { key: "youtubeTitle", label: "Featured video title", type: "text" },
@@ -634,7 +662,7 @@ const SETTINGS_GROUPS: { id: string; label: string; icon: string; fields: FieldD
   {
     id: "security",
     label: "Admin password",
-    icon: "🔐",
+    icon: "security",
     fields: [
       { key: "newPassword", label: "New password", type: "text", hint: "Leave empty to keep the current password" },
     ],
@@ -696,8 +724,8 @@ export function SettingsPanel({ activeScreen }: { activeScreen: number }) {
               onClick={() => setGroup(item.id)}
               className={`row-tap ${group === item.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">
-                {item.icon}
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-gold">
+                <AdminIcon name={item.icon} />
               </span>
               <span className="flex-1 text-[13px] font-bold text-warm">{item.label}</span>
               <span className="text-muted-2">›</span>
@@ -719,8 +747,11 @@ export function SettingsPanel({ activeScreen }: { activeScreen: number }) {
         <div className="mt-3 flex flex-col gap-2">
           {SETTINGS_GROUPS.map((item) => (
             <div key={item.id} className="rounded-2xl border border-line p-3">
-              <p className="text-[13px] font-bold text-warm">
-                {item.icon} {item.label}
+              <p className="flex items-center gap-2 text-[13px] font-bold text-warm">
+                <span className="text-gold">
+                  <AdminIcon name={item.icon} size={14} />
+                </span>
+                {item.label}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-2">
                 {item.fields.length} setting{item.fields.length === 1 ? "" : "s"}
@@ -749,7 +780,8 @@ export function SettingsPanel({ activeScreen }: { activeScreen: number }) {
               onClick={() => setGroup(item.id)}
               className={`chip ${group === item.id ? "chip-active" : ""}`}
             >
-              {item.icon} {item.label}
+              <AdminIcon name={item.icon} size={13} />
+              {item.label}
             </button>
           ))}
         </div>
@@ -861,13 +893,13 @@ export function VideosPanel({ activeScreen }: { activeScreen: number }) {
           <div className={`rounded-2xl border p-3 ${values.youtubeVideoUrl ? "border-ok bg-ok-soft" : "border-line bg-white/5"}`}>
             <p className="text-[11px] font-bold text-muted">Featured video</p>
             <p className="mt-1 text-[12px] font-bold text-warm">
-              {values.youtubeVideoUrl ? "Configured ✓" : "Not set"}
+              {values.youtubeVideoUrl ? "Configured" : "Not set"}
             </p>
           </div>
           <div className={`rounded-2xl border p-3 ${values.demoVideoUrl ? "border-ok bg-ok-soft" : "border-line bg-white/5"}`}>
             <p className="text-[11px] font-bold text-muted">Demo video</p>
             <p className="mt-1 text-[12px] font-bold text-warm">
-              {values.demoVideoUrl ? "Configured ✓" : "Not set"}
+              {values.demoVideoUrl ? "Configured" : "Not set"}
             </p>
           </div>
         </div>
@@ -891,7 +923,9 @@ export function VideosPanel({ activeScreen }: { activeScreen: number }) {
               onClick={() => setSlot(item.id)}
               className={`row-tap ${slot === item.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">🎬</span>
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/5">
+                  <AdminIcon name="videos" size={16} />
+                </span>
               <span className="flex-1 text-[13px] font-bold text-warm">{item.label}</span>
               <span className="text-muted-2">›</span>
             </button>

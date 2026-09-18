@@ -77,21 +77,34 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
 
 // ---------------------------------------------------------------------------
 // Customer PINs — scrypt hashes, never stored in plain text
+//
+// scrypt is deliberately expensive (tens of milliseconds). The async variants
+// are used everywhere so hashing a PIN never blocks the Node event loop — on a
+// serverless function that block would stall every other in-flight request,
+// which is exactly how a "simple" order submit turned into a timeout.
 // ---------------------------------------------------------------------------
-export function hashPin(pin: string): string {
+function scrypt(value: string, salt: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(value, salt, 32, (error, derivedKey) => {
+      if (error) reject(error);
+      else resolve(derivedKey as Buffer);
+    });
+  });
+}
+
+export async function hashPin(pin: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(pin, salt, 32).toString("hex");
+  const hash = (await scrypt(pin, salt)).toString("hex");
   return `s1$${salt}$${hash}`;
 }
 
-export function verifyPin(pin: string, stored: string): boolean {
+export async function verifyPin(pin: string, stored: string): Promise<boolean> {
   if (!stored || !pin) return false;
   const [version, salt, hash] = stored.split("$");
   if (version !== "s1" || !salt || !hash) return false;
-  const candidate = crypto.scryptSync(pin, salt, 32).toString("hex");
-  const a = Buffer.from(candidate, "hex");
-  const b = Buffer.from(hash, "hex");
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const candidate = await scrypt(pin, salt);
+  const expected = Buffer.from(hash, "hex");
+  return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
 }
 
 export function isValidPin(pin: string): boolean {

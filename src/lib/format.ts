@@ -54,29 +54,72 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 export type WhatsAppOrderMessage = {
   orderCode?: string | null;
   name?: string;
+  /** The customer's own WhatsApp number. */
   phone?: string;
   packageName: string;
+  packageQuantity?: string | null;
   quantity?: number;
+  /** Original (pre-discount) amount for the whole order. */
+  originalPrice?: number | string | null;
+  /** Total discount for the whole order (package + coupon). */
+  discount?: number | string | null;
+  couponCode?: string | null;
+  couponDiscount?: number | string | null;
+  /** What the customer actually pays. Legacy callers pass this as `amount`. */
   amount: number | string;
   paymentMethod?: string;
+  /** The number the money was sent FROM. */
+  paymentNumber?: string;
   transactionId?: string;
+  /** Note the customer wrote at checkout. */
+  note?: string | null;
 };
 
-/** Message used by the "Chat on WhatsApp" buttons — same fields, one format. */
+/**
+ * Message used by every "Chat on WhatsApp" / "Send on WhatsApp" button.
+ *
+ * `wa.me` opens WhatsApp with this text prefilled so the CUSTOMER taps send —
+ * it is click-to-chat, never automatic server-side sending.
+ *
+ * The destination number is always the one configured in the settings table
+ * (`settings.whatsappNumber`); nothing is hard-coded here.
+ */
 export function orderWhatsAppMessage(opts: WhatsAppOrderMessage): string {
+  const discount = Number(opts.discount ?? 0) || 0;
+  const couponDiscount = Number(opts.couponDiscount ?? 0) || 0;
+  const totalDiscount = discount + couponDiscount;
+  const quantity = Number(opts.quantity ?? 0) || 0;
+
   const lines = [
     "🛒 *Order Confirmation — Boom Shorts*",
     "",
     opts.orderCode ? `🆔 Order ID: ${opts.orderCode}` : "",
     opts.name ? `👤 Name: ${opts.name}` : "",
+    opts.phone ? `📱 WhatsApp: ${opts.phone}` : "",
     `📦 Package: ${opts.packageName}`,
-    opts.quantity && opts.quantity > 1 ? `🔢 Quantity: ${opts.quantity}` : "",
-    `💰 Amount: ${taka(opts.amount)}`,
-    opts.paymentMethod ? `💳 Payment: ${opts.paymentMethod}` : "",
+    opts.packageQuantity ? `📋 Deliverable: ${opts.packageQuantity}` : "",
+    quantity ? `🔢 Quantity: ${quantity}` : "",
+    "",
+    opts.originalPrice !== null && opts.originalPrice !== undefined && Number(opts.originalPrice) > 0
+      ? `🏷️ Original price: ${taka(opts.originalPrice)}`
+      : "",
+    totalDiscount > 0 ? `🎁 Discount: − ${taka(totalDiscount)}` : "",
+    opts.couponCode ? `🎟️ Coupon: ${opts.couponCode}${couponDiscount > 0 ? ` (− ${taka(couponDiscount)})` : ""}` : "",
+    `💰 Total payable: ${taka(opts.amount)}`,
+    "",
+    opts.paymentMethod ? `💳 Payment method: ${opts.paymentMethod}` : "",
+    opts.paymentNumber ? `📲 Paid from: ${opts.paymentNumber}` : "",
     opts.transactionId ? `🧾 Transaction ID: ${opts.transactionId}` : "",
-    opts.phone ? `📱 Customer WhatsApp: ${opts.phone}` : "",
+    opts.note ? `📝 Note: ${opts.note}` : "",
     "",
     "Please verify my payment. Thank you!",
   ];
-  return lines.filter((line) => line !== "").join("\n");
+
+  // Collapse the blank separator lines when whole groups are missing.
+  return lines
+    .join("\n")
+    .split("\n")
+    .filter((line, index, all) => !(line === "" && all[index - 1] === ""))
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
 }

@@ -8,6 +8,7 @@ export default function PackagesSection({
   subtitle,
   packages,
   videoUrl,
+  videoThumbnailUrl,
 }: {
   id: string;
   eyebrow: string;
@@ -15,6 +16,7 @@ export default function PackagesSection({
   subtitle: string;
   packages: PackageItem[];
   videoUrl?: string;
+  videoThumbnailUrl?: string;
 }) {
   if (!packages.length) return null;
 
@@ -27,7 +29,13 @@ export default function PackagesSection({
         <div className="hair-gold mx-auto mt-5 w-40" aria-hidden />
       </div>
 
-      {videoUrl ? <ScrollAutoplayVideo videoUrl={videoUrl} title={title} /> : null}
+      {videoUrl ? (
+        <ScrollAutoplayVideo
+          videoUrl={videoUrl}
+          title={title}
+          thumbnailUrl={videoThumbnailUrl}
+        />
+      ) : null}
 
       {/* 2×2 on phones, 4 in a row on wide screens */}
       <div data-package-grid className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

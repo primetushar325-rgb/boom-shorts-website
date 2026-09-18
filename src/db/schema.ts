@@ -167,11 +167,29 @@ export const orders = pgTable("orders", {
   paymentStatus: text("payment_status").notNull().default("pending"), // pending|verified|rejected
   status: text("status").notNull().default("pending"),
   // pending|payment_verified|processing|completed|cancelled|rejected
+  /** Note written by the customer at checkout (optional). */
+  customerNote: text("customer_note").notNull().default(""),
   adminNote: text("admin_note").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Order idempotency keys — database-level duplicate-submit protection.
+//
+// One payment (same WhatsApp number + same transaction ID) owns exactly one
+// order. The key is claimed in the same transaction as the order INSERT, so two
+// simultaneous checkout requests cannot both create an order: the loser hits
+// the primary key and the server returns the order that already exists.
+// ---------------------------------------------------------------------------
+export const orderIdempotencyKeys = pgTable("order_idempotency_keys", {
+  idempotencyKey: text("idempotency_key").primaryKey(),
+  orderId: integer("order_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });

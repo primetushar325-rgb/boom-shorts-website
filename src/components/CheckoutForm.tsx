@@ -1,9 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { buildWhatsAppLink, formatDateTime, orderStatusLabel, orderWhatsAppMessage, taka } from "@/lib/format";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BadgeCheck,
+  Check,
+  Copy,
+  Loader2,
+  MessageCircle,
+  Minus,
+  Plus,
+  ReceiptText,
+  TriangleAlert,
+} from "lucide-react";
+import {
+  buildWhatsAppLink,
+  formatDateTime,
+  orderStatusLabel,
+  orderWhatsAppMessage,
+  taka,
+} from "@/lib/format";
 import { parseVideoUrl } from "@/lib/youtube";
+import { compressScreenshot, type PreparedScreenshot } from "@/lib/screenshot";
 
 export type CheckoutPackage = {
   id: number;
@@ -33,10 +53,19 @@ export type CheckoutSettings = {
 type OrderResult = {
   orderCode: string;
   packageName: string;
+  packageQuantity?: string;
   quantity: number;
+  unitPrice?: number;
+  originalPrice?: number;
+  discountAmount?: number;
+  couponCode?: string | null;
+  couponDiscount?: number;
   price: number;
   paymentMethod: string;
+  paymentNumber?: string;
+  whatsapp?: string;
   transactionId: string;
+  customerNote?: string;
   status: string;
   paymentStatus: string;
   screenshotStored?: boolean;
@@ -44,6 +73,22 @@ type OrderResult = {
 };
 
 const MAX_QUANTITY = 20;
+/** Safety net so the button can never stay stuck in "Submitting…". */
+const SUBMIT_TIMEOUT_MS = 45_000;
+
+/** Reads a response as JSON, falling back to a useful message for HTML errors. */
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text().catch(() => "");
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    // A gateway/proxy error page (502/504/413) is not JSON. Surface the status
+    // instead of pretending the network died.
+    return { error: `Server responded with ${res.status}. Please try again.` };
+  }
+}
 
 export default function CheckoutForm({
   pkg,
@@ -58,15 +103,31 @@ export default function CheckoutForm({
   const [phone, setPhone] = useState("");
   const [paymentNumber, setPaymentNumber] = useState("");
   const [transactionId, setTransactionId] = useState("");
+  const [note, setNote] = useState("");
   const [pin, setPin] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState<{ code: string; discount: number; label: string } | null>(null);
   const [couponMessage, setCouponMessage] = useState("");
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [prepared, setPrepared] = useState<PreparedScreenshot | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<OrderResult | null>(null);
+  const [wasDuplicate, setWasDuplicate] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // A real mobile double-tap fires two submits before React can re-render, so
+  // `submitting` state alone is not enough — the ref flips synchronously.
+  const inFlight = useRef(false);
+  const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (watchdog.current) clearTimeout(watchdog.current);
+    };
+  }, []);
 
   const methods = useMemo(() => {
     const list: { key: "bKash" | "Nagad" | "Rocket"; number: string }[] = [
@@ -87,42 +148,128 @@ export default function CheckoutForm({
 
   const demoVideo = parseVideoUrl(pkg.demoVideoUrl);
 
+  const whatsappMessage = useMemo(
+    () =>
+      orderWhatsAppMessage({
+        orderCode: result?.orderCode,
+        name: name.trim(),
+        phone: phone.trim(),
+        packageName: result?.packageName ?? pkg.name,
+        packageQuantity: result?.packageQuantity ?? pkg.quantityLabel,
+        quantity: result?.quantity ?? quantity,
+        originalPrice: result?.originalPrice ?? subtotal,
+        discount: result?.discountAmount ?? packageDiscount,
+        couponCode: result?.couponCode ?? coupon?.code ?? null,
+        couponDiscount: result?.couponDiscount ?? couponDiscount,
+        amount: result?.price ?? total,
+        paymentMethod: result?.paymentMethod ?? method,
+        paymentNumber: result?.paymentNumber ?? paymentNumber.trim() ?? phone.trim(),
+        transactionId: result?.transactionId ?? transactionId.trim(),
+        note: result?.customerNote ?? note.trim(),
+      }),
+    [
+      result,
+      name,
+      phone,
+      quantity,
+      subtotal,
+      packageDiscount,
+      coupon,
+      couponDiscount,
+      total,
+      method,
+      paymentNumber,
+      transactionId,
+      note,
+      pkg.name,
+      pkg.quantityLabel,
+    ],
+  );
+
+  const whatsappHref = buildWhatsAppLink(settings.whatsappNumber, whatsappMessage);
+
+  async function handleFile(next: File | null) {
+    setFile(next);
+    setPrepared(null);
+    setError("");
+    if (!next) return;
+    setPreparing(true);
+    try {
+      // Phones routinely produce 4–10 MB screenshots. Vercel rejects request
+      // bodies over 4.5 MB *before* our code runs, which used to look like a
+      // network failure to the customer. Re-encode in the browser first.
+      const ready = await compressScreenshot(next);
+      setPrepared(ready);
+      if (!ready.ok) {
+        setError(
+          "That screenshot could not be read. You can still submit the order and send the screenshot to us on WhatsApp.",
+        );
+      }
+    } catch {
+      setPrepared({ file: next, ok: true, compressed: false, bytes: next.size });
+    } finally {
+      setPreparing(false);
+    }
+  }
+
   async function applyCoupon() {
-    if (!couponCode.trim()) return;
+    const code = couponCode.trim();
+    if (!code || checkingCoupon) return;
+    setCheckingCoupon(true);
     setCouponMessage("Checking…");
     try {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode, amount: afterPackage }),
+        body: JSON.stringify({ code, amount: afterPackage }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (res.ok && data.valid) {
-        setCoupon({ code: data.code, discount: Number(data.discount ?? 0), label: data.label ?? "" });
-        setCouponMessage(`✅ Coupon applied — ${data.label || `${data.discountPercent}% off`}`);
+        setCoupon({
+          code: String(data.code ?? code),
+          discount: Number(data.discount ?? 0),
+          label: String(data.label ?? ""),
+        });
+        setCouponMessage(`Coupon applied — ${String(data.label || `${data.discountPercent ?? 0}% off`)}`);
       } else {
         setCoupon(null);
-        setCouponMessage(`❌ ${data.error || "Invalid or expired coupon"}`);
+        setCouponMessage(String(data.error || "Invalid or expired coupon"));
       }
     } catch {
       setCoupon(null);
-      setCouponMessage("❌ Could not check the coupon. Please try again.");
+      setCouponMessage("Could not check the coupon. Please try again.");
+    } finally {
+      setCheckingCoupon(false);
     }
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (submitting) return;
+    if (inFlight.current) return; // synchronous guard against a double tap
     setError("");
 
+    const cleanPhone = phone.replace(/\D/g, "");
     if (!name.trim()) return setError("Please enter your name.");
-    if (!/^01[3-9]\d{8}$/.test(phone.replace(/\D/g, "")))
+    if (!/^01[3-9]\d{8}$/.test(cleanPhone)) {
       return setError("Please enter a valid WhatsApp number (01XXXXXXXXX).");
+    }
     if (!transactionId.trim()) return setError("Please enter the payment Transaction ID.");
     if (pin && !/^\d{4,6}$/.test(pin)) return setError("Your PIN must be 4–6 digits.");
-    if (file && file.size > 6 * 1024 * 1024) return setError("Screenshot must be smaller than 6MB.");
+    if (file && file.size > 20 * 1024 * 1024) {
+      return setError("That screenshot is too large. Please use one smaller than 20MB.");
+    }
 
+    inFlight.current = true;
     setSubmitting(true);
+    watchdog.current = setTimeout(() => {
+      // Only fires if the fetch itself never settles (proxy hang, tab suspended).
+      inFlight.current = false;
+      setSubmitting(false);
+      setError(
+        "The order is taking longer than usual. Please check your connection and submit again — we never create two orders for the same Transaction ID.",
+      );
+    }, SUBMIT_TIMEOUT_MS);
+
     try {
       const form = new FormData();
       form.append("packageId", String(pkg.id));
@@ -132,37 +279,49 @@ export default function CheckoutForm({
       form.append("paymentNumber", paymentNumber.trim() || phone.trim());
       form.append("paymentMethod", method);
       form.append("transactionId", transactionId.trim());
+      form.append("note", note.trim());
       if (coupon) form.append("couponCode", coupon.code);
       if (pin) form.append("pin", pin);
-      if (file) form.append("screenshot", file);
+
+      const upload = prepared?.ok ? prepared.file : null;
+      if (upload) form.append("screenshot", upload);
 
       const res = await fetch("/api/orders", { method: "POST", body: form });
-      const data = await res.json();
+      const data = await readJson(res);
 
       if (!res.ok) {
-        setError(data.error || "Something went wrong. Please try again.");
+        const message = typeof data.error === "string" && data.error.trim() ? data.error : "";
+        setError(
+          message ||
+            (res.status === 413
+              ? "That screenshot is too large to upload. Please submit the order without it and send it on WhatsApp."
+              : `We could not save the order (error ${res.status}). Please try again.`),
+        );
         return;
       }
 
-      setResult(data.order);
-      const message = orderWhatsAppMessage({
-        orderCode: data.order.orderCode,
-        name: name.trim(),
-        phone: phone.trim(),
-        packageName: data.order.packageName,
-        quantity: data.order.quantity,
-        amount: data.order.price,
-        paymentMethod: data.order.paymentMethod,
-        transactionId: data.order.transactionId,
-      });
-      const whatsappUrl = buildWhatsAppLink(
-        settings.whatsappNumber,
-        message,
-      );
-      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      const order = data.order as OrderResult | undefined;
+      if (!order?.orderCode) {
+        setError("The server accepted the order but returned an unexpected response. Please contact us with your Transaction ID.");
+        return;
+      }
+
+      setWasDuplicate(data.duplicate === true);
+      setResult(order);
+      // WhatsApp is opened by the customer tapping the button on the success
+      // card. A `window.open()` here is not a user gesture any more (it runs
+      // after an await) so mobile browsers silently block it — which looked
+      // like "the order button did nothing".
+      window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
-      setError("Network problem — please check your connection and try again.");
+      // Only a genuine transport failure reaches here.
+      setError(
+        "Network problem — the order did not reach our server. Please check your connection and submit again.",
+      );
     } finally {
+      if (watchdog.current) clearTimeout(watchdog.current);
+      watchdog.current = null;
+      inFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -171,12 +330,14 @@ export default function CheckoutForm({
     return (
       <div className="mx-auto max-w-md">
         <div className="card p-5 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ok-soft text-2xl">
-            ✅
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-ok-soft text-ok">
+            <BadgeCheck size={30} strokeWidth={2} aria-hidden />
           </div>
           <h1 className="mt-3 text-lg font-extrabold text-warm">Order submitted!</h1>
           <p className="mt-1 text-sm text-muted">
-            We received your order. Payment verification usually takes a few minutes.
+            {wasDuplicate
+              ? "We already had this payment on file, so we attached you to the existing order instead of creating a second one."
+              : "We received your order. Payment verification usually takes a few minutes."}
           </p>
 
           <div className="mt-5 grid gap-2 rounded-2xl bg-white/5 p-4 text-left text-sm">
@@ -190,38 +351,34 @@ export default function CheckoutForm({
             <Row label="Date" value={formatDateTime(result.createdAt)} />
           </div>
 
-          {result.screenshotStored === false && (
-            <p className="mt-3 rounded-xl bg-gold-soft px-3 py-2 text-xs font-semibold text-gold-light">
-              Your screenshot could not be uploaded. Please send it to us on WhatsApp with your
-              Order ID.
+          {result.screenshotStored === false ? (
+            <p className="mt-3 flex items-start gap-2 rounded-xl bg-gold-soft px-3 py-2 text-left text-xs font-semibold text-gold-light">
+              <TriangleAlert size={15} className="mt-0.5 shrink-0" aria-hidden />
+              <span>
+                Your screenshot could not be uploaded. Please send it to us on WhatsApp with your
+                Order ID — your order itself is saved.
+              </span>
             </p>
-          )}
+          ) : null}
 
           <p className="mt-3 text-[11px] text-muted-2">
             Save your Order ID — you need it to track this order.
           </p>
 
           <div className="mt-5 flex flex-col gap-2">
+            {/* wa.me click-to-chat: the message is prefilled, the customer taps
+                send. This is not automatic server-side sending. */}
             <a
-              href={buildWhatsAppLink(
-                settings.whatsappNumber,
-                orderWhatsAppMessage({
-                  orderCode: result.orderCode,
-                  packageName: result.packageName,
-                  quantity: result.quantity,
-                  amount: result.price,
-                  paymentMethod: result.paymentMethod,
-                  transactionId: result.transactionId,
-                  phone,
-                }),
-              )}
+              href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-whatsapp w-full"
             >
-              Send on WhatsApp
+              <MessageCircle size={17} aria-hidden />
+              Send order details on WhatsApp
             </a>
             <Link href="/orders" className="btn-outline w-full">
+              <ReceiptText size={16} aria-hidden />
               View my orders
             </Link>
             <Link href="/" className="btn-ghost w-full">
@@ -236,10 +393,10 @@ export default function CheckoutForm({
   return (
     <form onSubmit={submit} className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       {/* ---------------- package + pricing ---------------- */}
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <section className="card p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gold-soft text-xl">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-soft text-xl">
               {pkg.icon}
             </span>
             <div className="min-w-0">
@@ -249,7 +406,7 @@ export default function CheckoutForm({
               ) : null}
               {pkg.quantityLabel ? (
                 <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] font-semibold text-warm-dim">
-                  ⏱ {pkg.quantityLabel}
+                  {pkg.quantityLabel}
                 </p>
               ) : null}
             </div>
@@ -259,20 +416,7 @@ export default function CheckoutForm({
             <ul className="mt-4 grid gap-1.5 sm:grid-cols-2">
               {pkg.features.map((feature) => (
                 <li key={feature} className="feature-tick">
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#d4af37"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mt-0.5 shrink-0"
-                    aria-hidden="true"
-                  >
-                    <path d="m5 13 4 4L19 7" />
-                  </svg>
+                  <Check size={14} strokeWidth={3} className="mt-0.5 shrink-0 text-gold" aria-hidden />
                   {feature}
                 </li>
               ))}
@@ -290,7 +434,7 @@ export default function CheckoutForm({
                 className="h-full w-full"
                 src={demoVideo.embedUrl}
                 title={`${pkg.name} demo`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 loading="lazy"
               />
@@ -304,21 +448,21 @@ export default function CheckoutForm({
             <button
               type="button"
               onClick={() => setQuantity((value) => Math.max(1, value - 1))}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-line text-lg font-bold text-warm-dim"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-line text-warm-dim"
               aria-label="Decrease quantity"
             >
-              −
+              <Minus size={16} aria-hidden />
             </button>
-            <span className="min-w-[3rem] text-center text-lg font-extrabold text-warm">
+            <span className="min-w-[3rem] text-center text-lg font-extrabold tabular-nums text-warm">
               {quantity}
             </span>
             <button
               type="button"
               onClick={() => setQuantity((value) => Math.min(MAX_QUANTITY, value + 1))}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-line text-lg font-bold text-warm-dim"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-line text-warm-dim"
               aria-label="Increase quantity"
             >
-              +
+              <Plus size={16} aria-hidden />
             </button>
             <span className="text-xs text-muted-2">max {MAX_QUANTITY}</span>
           </div>
@@ -339,28 +483,40 @@ export default function CheckoutForm({
         </section>
 
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">
-            Coupon (optional)
-          </p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">Coupon (optional)</p>
           <div className="mt-2 flex gap-2">
             <input
               value={couponCode}
               onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
               placeholder="e.g. SAVE10"
-              className="input flex-1"
+              className="input min-w-0 flex-1"
+              autoComplete="off"
             />
-            <button type="button" onClick={applyCoupon} className="btn-outline px-4">
+            <button
+              type="button"
+              onClick={applyCoupon}
+              disabled={checkingCoupon || !couponCode.trim()}
+              className="btn-outline shrink-0 px-4"
+            >
+              {checkingCoupon ? <Loader2 size={15} className="animate-spin" aria-hidden /> : null}
               Apply
             </button>
           </div>
           {couponMessage ? (
-            <p className="mt-2 text-xs font-semibold text-muted">{couponMessage}</p>
+            <p
+              className={`mt-2 flex items-start gap-1.5 text-xs font-semibold ${
+                coupon ? "text-ok" : "text-muted"
+              }`}
+            >
+              {coupon ? null : <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />}
+              {couponMessage}
+            </p>
           ) : null}
         </section>
       </div>
 
       {/* ---------------- payment + customer details ---------------- */}
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <section className="card p-4 sm:p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-muted">Payment method</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -369,6 +525,7 @@ export default function CheckoutForm({
                 key={item.key}
                 type="button"
                 onClick={() => setMethod(item.key)}
+                aria-pressed={method === item.key}
                 className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
                   method === item.key
                     ? "border-gold bg-gold-soft text-gold-light"
@@ -384,7 +541,7 @@ export default function CheckoutForm({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-2">
               Send money to ({method})
             </p>
-            <p className="mt-1 text-xl font-extrabold tracking-wide text-warm">
+            <p className="mt-1 break-all text-xl font-extrabold tracking-wide text-warm">
               {activeMethod?.number || "—"}
             </p>
             {activeMethod?.number ? (
@@ -401,7 +558,8 @@ export default function CheckoutForm({
                 }}
                 className="btn-ghost mt-2 px-3 py-1.5 text-[11px]"
               >
-                {copied ? "Copied ✓" : "Copy number"}
+                {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                {copied ? "Copied" : "Copy number"}
               </button>
             ) : null}
             {settings.qrCodeUrl ? (
@@ -409,7 +567,11 @@ export default function CheckoutForm({
               <img
                 src={settings.qrCodeUrl}
                 alt="Payment QR code"
+                width={128}
+                height={128}
                 className="mx-auto mt-3 h-32 w-32 rounded-xl border border-line bg-coal object-contain"
+                loading="lazy"
+                decoding="async"
               />
             ) : null}
             {settings.paymentNotice ? (
@@ -421,9 +583,7 @@ export default function CheckoutForm({
         </section>
 
         <section className="card p-4 sm:p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">
-            Your information
-          </p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">Your information</p>
           <div className="mt-3 flex flex-col gap-3">
             <div>
               <label className="label" htmlFor="name">
@@ -465,6 +625,7 @@ export default function CheckoutForm({
                 onChange={(event) => setPaymentNumber(event.target.value)}
                 placeholder="01XXXXXXXXX"
                 inputMode="tel"
+                autoComplete="tel"
               />
             </div>
             <div>
@@ -477,6 +638,7 @@ export default function CheckoutForm({
                 value={transactionId}
                 onChange={(event) => setTransactionId(event.target.value)}
                 placeholder="e.g. 8N7A2K9Q1M"
+                autoComplete="off"
                 required
               />
             </div>
@@ -488,12 +650,31 @@ export default function CheckoutForm({
                 id="screenshot"
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
                 className="input file:mr-3 file:rounded-lg file:border-0 file:bg-gold file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
               />
               <p className="mt-1 text-[11px] text-muted-2">
-                JPG/PNG/WebP up to 6MB. Stored privately — only our team can view it.
+                {preparing
+                  ? "Preparing your screenshot…"
+                  : prepared?.ok
+                    ? `Ready to upload · ${Math.max(1, Math.round(prepared.bytes / 1024))} KB${
+                        prepared.compressed ? " (optimised for a faster upload)" : ""
+                      }. Stored privately — only our team can view it.`
+                    : "JPG/PNG/WebP. Stored privately — only our team can view it. Optional: you can send it on WhatsApp instead."}
               </p>
+            </div>
+            <div>
+              <label className="label" htmlFor="note">
+                Note for our team (optional)
+              </label>
+              <textarea
+                id="note"
+                className="input min-h-[72px]"
+                value={note}
+                onChange={(event) => setNote(event.target.value.slice(0, 500))}
+                placeholder="Channel link, video style, deadline…"
+                maxLength={500}
+              />
             </div>
             <div>
               <label className="label" htmlFor="pin">
@@ -506,12 +687,20 @@ export default function CheckoutForm({
                 onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="Used later to see your order history"
                 inputMode="numeric"
+                autoComplete="off"
               />
+              <p className="mt-1 text-[11px] text-muted-2">
+                Optional. Leaving it empty never affects your order.
+              </p>
             </div>
           </div>
 
           {error ? (
-            <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad">
+            <p
+              role="alert"
+              className="mt-3 flex items-start gap-2 rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad"
+            >
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
               {error}
             </p>
           ) : null}
@@ -519,14 +708,28 @@ export default function CheckoutForm({
           <button
             type="submit"
             disabled={submitting}
-            className="btn-gold btn-shine mt-4 w-full py-3 text-[15px]"
+            aria-busy={submitting}
+            className="btn-gold btn-shine mt-4 w-full py-3.5 text-[15px]"
           >
-            {submitting ? "Submitting…" : `Confirm order · ${taka(total)}`}
+            {submitting ? (
+              <>
+                <Loader2 size={17} className="animate-spin" aria-hidden />
+                Submitting your order…
+              </>
+            ) : (
+              `Confirm order · ${taka(total)}`
+            )}
           </button>
           <p className="mt-2 text-center text-[11px] text-muted-2">
-            Prices are verified on our server before the order is saved.
+            Prices are verified on our server before the order is saved. Submitting twice with the
+            same Transaction ID never creates a second order.
           </p>
         </section>
+
+        <Link href="/#boom-shorts" className="btn-ghost w-full py-2.5 text-xs">
+          <ArrowLeft size={14} aria-hidden />
+          Choose a different package
+        </Link>
       </div>
     </form>
   );
@@ -536,7 +739,11 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-xs text-muted">{label}</span>
-      <span className={`text-right text-[13px] ${strong ? "font-extrabold text-warm" : "font-semibold text-warm-dim"}`}>
+      <span
+        className={`break-words text-right text-[13px] ${
+          strong ? "font-extrabold text-warm" : "font-semibold text-warm-dim"
+        }`}
+      >
         {value}
       </span>
     </div>

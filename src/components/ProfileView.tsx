@@ -60,7 +60,7 @@ export default function ProfileView() {
   }
 
   if (loading) {
-    return <div className="card p-6 text-center text-sm text-slate-400">Loading…</div>;
+    return <div className="card p-6 text-center text-sm text-muted-2">Loading…</div>;
   }
 
   if (customer) {
@@ -68,38 +68,38 @@ export default function ProfileView() {
       <div className="flex flex-col gap-3">
         <div className="card p-5">
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-600 text-lg font-bold text-white">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gold text-lg font-bold text-ink">
               {(customer.name || customer.phone).slice(0, 1).toUpperCase()}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold text-navy">
+              <p className="truncate text-sm font-extrabold text-warm">
                 {customer.name || "Customer"}
               </p>
-              <p className="text-xs text-slate-500">{customer.phone}</p>
+              <p className="text-xs text-muted">{customer.phone}</p>
             </div>
           </div>
         </div>
 
         <Link href="/orders" className="row-tap">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gold-soft text-gold">
             🧾
           </span>
           <span className="flex-1">
-            <span className="block text-sm font-bold text-navy">My orders</span>
-            <span className="block text-xs text-slate-500">Track status and payment of your orders</span>
+            <span className="block text-sm font-bold text-warm">My orders</span>
+            <span className="block text-xs text-muted">Track status and payment of your orders</span>
           </span>
-          <span className="text-slate-300">›</span>
+          <span className="text-muted-2">›</span>
         </Link>
 
         <Link href="/reviews" className="row-tap">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-600">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gold-soft text-amber-600">
             ⭐
           </span>
           <span className="flex-1">
-            <span className="block text-sm font-bold text-navy">Write a review</span>
-            <span className="block text-xs text-slate-500">Share your experience with other buyers</span>
+            <span className="block text-sm font-bold text-warm">Write a review</span>
+            <span className="block text-xs text-muted">Share your experience with other buyers</span>
           </span>
-          <span className="text-slate-300">›</span>
+          <span className="text-muted-2">›</span>
         </Link>
 
         <button type="button" onClick={logout} className="btn-outline w-full">
@@ -183,14 +183,14 @@ export default function ProfileView() {
         </div>
 
         {error ? (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{error}</p>
+          <p className="rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad">{error}</p>
         ) : null}
 
         <button type="submit" disabled={busy} className="btn-primary w-full">
           {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
 
-        <p className="text-center text-[11px] leading-relaxed text-slate-400">
+        <p className="text-center text-[11px] leading-relaxed text-muted-2">
           {mode === "login"
             ? "Use the number and PIN you set when placing an order."
             : "Your PIN is stored encrypted and lets you see your own orders only."}
@@ -198,8 +198,8 @@ export default function ProfileView() {
       </form>
 
       <div className="card p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Ordered without a PIN?</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-2">Ordered without a PIN?</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
           You can still track any order with your Order ID and WhatsApp number from the Orders tab.
         </p>
         <Link href="/orders" className="btn-outline mt-3 w-full py-2.5 text-xs">

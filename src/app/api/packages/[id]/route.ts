@@ -5,6 +5,8 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { packages } from "@/db/schema";
 import { normalizePackagePricing, toNumber } from "@/lib/pricing";
 import { isAdminAuthed } from "@/lib/session";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .where(eq(packages.id, packageId))
     .returning();
 
+  revalidatePublicContent(PUBLIC_TAGS.packages);
   return NextResponse.json({ package: updated });
 }
 
@@ -111,5 +114,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   await db.delete(packages).where(eq(packages.id, packageId));
+  revalidatePublicContent(PUBLIC_TAGS.packages);
   return NextResponse.json({ ok: true });
 }

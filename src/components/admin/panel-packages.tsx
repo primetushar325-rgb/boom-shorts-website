@@ -210,29 +210,29 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
         active={activeScreen === 0}
       >
         <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-lg font-extrabold text-navy">
+          <div className="rounded-2xl border border-line bg-white/5 p-3">
+            <p className="text-lg font-extrabold text-warm">
               {all.filter((pkg) => pkg.category === "boom").length}
             </p>
-            <p className="text-[11px] text-slate-500">Boom Shorts packages</p>
+            <p className="text-[11px] text-muted">Boom Shorts packages</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-lg font-extrabold text-navy">
+          <div className="rounded-2xl border border-line bg-white/5 p-3">
+            <p className="text-lg font-extrabold text-warm">
               {all.filter((pkg) => pkg.category === "service").length}
             </p>
-            <p className="text-[11px] text-slate-500">Service packages</p>
+            <p className="text-[11px] text-muted">Service packages</p>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-lg font-extrabold text-emerald-700">
+          <div className="rounded-2xl border border-ok bg-ok-soft p-3">
+            <p className="text-lg font-extrabold text-ok">
               {all.filter((pkg) => pkg.available).length}
             </p>
-            <p className="text-[11px] text-emerald-700">Available now</p>
+            <p className="text-[11px] text-ok">Available now</p>
           </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-lg font-extrabold text-amber-800">
+          <div className="rounded-2xl border border-gold-line bg-gold-soft p-3">
+            <p className="text-lg font-extrabold text-gold-light">
               {all.filter((pkg) => pkg.bestSeller).length}
             </p>
-            <p className="text-[11px] text-amber-700">Best sellers</p>
+            <p className="text-[11px] text-gold-light">Best sellers</p>
           </div>
         </div>
 
@@ -261,7 +261,7 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
           ➕ Add new package
         </Button>
 
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-2 text-[11px] leading-relaxed text-muted">
           Set the original price and a discount — the final price is calculated automatically so
           numbers can never contradict each other.
         </p>
@@ -289,7 +289,7 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
               <div
                 key={pkg.id}
                 className={`rounded-2xl border p-3 ${
-                  form.id === pkg.id ? "border-blue-400 ring-1 ring-blue-200" : "border-slate-200"
+                  form.id === pkg.id ? "border-gold ring-1 ring-gold-line" : "border-line"
                 }`}
               >
                 <button
@@ -299,15 +299,15 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-bold text-navy">
+                      <p className="truncate text-[13px] font-bold text-warm">
                         {pkg.icon} {pkg.name}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
+                      <p className="mt-0.5 text-[11px] text-muted">
                         {taka(pricing.originalPrice)} → <strong>{taka(pricing.finalPrice)}</strong>
                         {pricing.discountPercent > 0 ? ` (−${pricing.discountPercent}%)` : ""}
                       </p>
                       {pkg.quantityLabel ? (
-                        <p className="mt-0.5 text-[10px] text-slate-400">{pkg.quantityLabel}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-2">{pkg.quantityLabel}</p>
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
@@ -501,17 +501,17 @@ export function PackagesPanel({ activeScreen }: { activeScreen: number }) {
             </Field>
           ) : null}
 
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700">
+          <div className="rounded-2xl border border-gold-line bg-gold-soft p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gold-light">
               Final price (calculated)
             </p>
-            <p className="mt-1 text-lg font-extrabold text-navy">
+            <p className="mt-1 text-lg font-extrabold text-warm">
               {form.oldPrice === ""
                 ? taka(Number(form.discountValue || 0))
                 : taka(preview.finalPrice)}
             </p>
             {form.oldPrice !== "" && preview.discountAmount > 0 ? (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted">
                 <span className="line-through">{taka(preview.originalPrice)}</span> · save{" "}
                 {taka(preview.discountAmount)} ({preview.discountPercent}%)
               </p>

@@ -34,11 +34,11 @@ export default function AdminLoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-surface px-4">
       <form onSubmit={handleSubmit} className="card w-full max-w-sm p-6">
-        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-600 text-xl text-white">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gold text-xl text-ink">
           🔐
         </div>
-        <h1 className="mt-3 text-center text-lg font-extrabold text-navy">Admin sign in</h1>
-        <p className="mt-1 text-center text-xs text-slate-500">
+        <h1 className="mt-3 text-center text-lg font-extrabold text-warm">Admin sign in</h1>
+        <p className="mt-1 text-center text-xs text-muted">
           Manage orders, packages, payments and reviews.
         </p>
 
@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
         </div>
 
         {error ? (
-          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+          <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad">
             {error}
           </p>
         ) : null}

@@ -4,7 +4,12 @@ import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { buildWhatsAppLink } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
 
-export const dynamic = "force-dynamic";
+/**
+ * The shell only needs the public WhatsApp link, so it does not have to be
+ * force-dynamic. Individual private pages (orders, payment, profile, admin)
+ * opt into dynamic rendering themselves.
+ */
+export const revalidate = 300;
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const settings = await getSettings();

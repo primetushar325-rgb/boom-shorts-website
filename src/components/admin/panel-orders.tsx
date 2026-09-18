@@ -118,17 +118,17 @@ export function OrdersPanel({
               type="button"
               onClick={() => setStatus(card.id)}
               className={`rounded-2xl border p-3 text-left transition ${
-                status === card.id ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                status === card.id ? "border-gold bg-gold-soft" : "border-line bg-coal"
               }`}
             >
-              <p className="text-lg font-extrabold text-navy">{card.value}</p>
-              <p className="text-[11px] text-slate-500">{card.label}</p>
+              <p className="text-lg font-extrabold text-warm">{card.value}</p>
+              <p className="text-[11px] text-muted">{card.label}</p>
             </button>
           ))}
         </div>
 
         {mode === "payments" ? (
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 text-[11px] leading-relaxed text-muted">
             Open an order, check the Transaction ID against your bKash/Nagad statement and the
             attached screenshot, then tap &quot;Verify payment&quot;. Verifying moves the order to
             Payment Verified automatically.
@@ -178,21 +178,21 @@ export function OrdersPanel({
                 setNote(order.adminNote ?? "");
                 setNotice("");
               }}
-              className={`row-tap ${selected?.id === order.id ? "border-blue-400 ring-1 ring-blue-200" : ""}`}
+              className={`row-tap ${selected?.id === order.id ? "border-gold ring-1 ring-gold-line" : ""}`}
             >
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-[10px] font-bold text-slate-600">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5 text-[10px] font-bold text-warm-dim">
                 {order.orderCode?.replace("BS-", "") ?? order.id}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
-                  <span className="truncate text-[13px] font-bold text-navy">
+                  <span className="truncate text-[13px] font-bold text-warm">
                     {order.customerName}
                   </span>
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                <span className="mt-0.5 block truncate text-[11px] text-muted">
                   {order.packageName} ×{order.quantity} · {taka(order.price)}
                 </span>
-                <span className="mt-0.5 block truncate text-[10px] text-slate-400">
+                <span className="mt-0.5 block truncate text-[10px] text-muted-2">
                   {order.paymentMethod} · {order.transactionId}
                 </span>
               </span>
@@ -214,14 +214,14 @@ export function OrdersPanel({
       >
         {selected ? (
           <>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-[13px] font-extrabold text-navy">{selected.customerName}</p>
-              <p className="text-[12px] text-slate-600">
+            <div className="rounded-2xl border border-line bg-white/5 p-3">
+              <p className="text-[13px] font-extrabold text-warm">{selected.customerName}</p>
+              <p className="text-[12px] text-warm-dim">
                 <a
                   href={`https://wa.me/88${selected.whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-emerald-700 underline"
+                  className="font-semibold text-ok underline"
                 >
                   {selected.whatsapp}
                 </a>
@@ -249,7 +249,7 @@ export function OrdersPanel({
                 <Detail label="Payment status" value={selected.paymentStatus} />
               </div>
               {selected.packageQuantity ? (
-                <p className="mt-2 text-[11px] text-slate-500">Deliverable: {selected.packageQuantity}</p>
+                <p className="mt-2 text-[11px] text-muted">Deliverable: {selected.packageQuantity}</p>
               ) : null}
             </div>
 
@@ -275,7 +275,7 @@ export function OrdersPanel({
             </div>
 
             <div className="mt-3 flex flex-col gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-2">
                 Payment
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -292,7 +292,7 @@ export function OrdersPanel({
                 </Button>
               </div>
 
-              <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-muted-2">
                 Order status
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -347,8 +347,8 @@ function Detail({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`mt-0.5 ${strong ? "font-extrabold text-navy" : "font-semibold text-slate-700"}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">{label}</p>
+      <p className={`mt-0.5 ${strong ? "font-extrabold text-warm" : "font-semibold text-warm-dim"}`}>
         {value}
       </p>
     </div>

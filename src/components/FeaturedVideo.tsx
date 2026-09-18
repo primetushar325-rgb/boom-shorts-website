@@ -35,7 +35,7 @@ export default function FeaturedVideo({
   return (
     <section id="featured" className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
       <div className="card overflow-hidden">
-        <div className="relative aspect-video w-full bg-slate-900">
+        <div className="relative aspect-video w-full bg-black">
           {playing ? (
             <iframe
               className="h-full w-full"
@@ -55,7 +55,7 @@ export default function FeaturedVideo({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={thumb} alt={title} className="h-full w-full object-cover" loading="lazy" />
               ) : (
-                <div className="h-full w-full bg-gradient-to-br from-blue-700 to-navy" />
+                <div className="h-full w-full bg-gradient-to-br from-charcoal to-ink" />
               )}
               <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
               <span className="absolute inset-0 grid place-items-center">
@@ -73,16 +73,16 @@ export default function FeaturedVideo({
         </div>
 
         <div className="flex items-start gap-3 p-4 sm:p-5">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-ink">
             {channelName.slice(0, 1).toUpperCase()}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="line-clamp-2 text-[15px] font-bold leading-snug text-navy sm:text-lg">
+            <h2 className="line-clamp-2 text-[15px] font-bold leading-snug text-warm sm:text-lg">
               {title}
             </h2>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">{channelName}</span>
-              <span className="inline-flex items-center gap-1 text-slate-500">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+              <span className="font-semibold text-warm-dim">{channelName}</span>
+              <span className="inline-flex items-center gap-1 text-muted">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4Zm-1 13-3-3 1.4-1.4L11 12.2l3.6-3.6L16 10l-5 5Z" />
                 </svg>
@@ -91,7 +91,7 @@ export default function FeaturedVideo({
               {viewsLabel ? <span>· {viewsLabel}</span> : null}
             </p>
             {description ? (
-              <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-600 sm:text-[13px]">
+              <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-warm-dim sm:text-[13px]">
                 {description}
               </p>
             ) : null}
@@ -104,7 +104,7 @@ export default function FeaturedVideo({
               >
                 ▶ Watch on {info.kind === "youtube" ? "YouTube" : "source"}
               </a>
-              <a href="#boom-shorts" className="btn-primary px-3.5 py-2 text-xs">
+              <a href="#boom-shorts" className="btn-gold btn-shine px-3.5 py-2 text-xs">
                 Order This Service
               </a>
             </div>

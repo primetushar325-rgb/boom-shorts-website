@@ -19,13 +19,13 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {items.map((item) => (
           <figure key={item.id} className="card p-4 sm:p-5">
-            <div className="text-amber-500" aria-label={`${item.rating} out of 5`}>
+            <div className="text-gold" aria-label={`${item.rating} out of 5`}>
               {"★".repeat(Math.max(0, Math.min(5, item.rating)))}
-              <span className="text-slate-200">
+              <span className="text-muted-2">
                 {"★".repeat(Math.max(0, 5 - Math.min(5, item.rating)))}
               </span>
             </div>
-            <blockquote className="mt-2.5 text-[13px] leading-relaxed text-slate-600">
+            <blockquote className="mt-2.5 text-[13px] leading-relaxed text-warm-dim">
               &ldquo;{item.message}&rdquo;
             </blockquote>
             <figcaption className="mt-4 flex items-center gap-2.5">
@@ -38,11 +38,11 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
                   loading="lazy"
                 />
               ) : (
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-gold-soft text-xs font-bold text-gold-light">
                   {item.name.slice(0, 1).toUpperCase()}
                 </span>
               )}
-              <span className="text-[13px] font-bold text-navy">{item.name}</span>
+              <span className="text-[13px] font-bold text-warm">{item.name}</span>
             </figcaption>
           </figure>
         ))}

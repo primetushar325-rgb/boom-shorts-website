@@ -32,7 +32,7 @@ export default async function DemoPage() {
               />
             </div>
           ) : (
-            <div className="grid aspect-video place-items-center bg-slate-100 text-sm text-slate-400">
+            <div className="grid aspect-video place-items-center bg-white/5 text-sm text-muted-2">
               No demo video has been added yet. Please check back soon.
             </div>
           )}

@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
-import { asc, desc, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { ensureSchema } from "@/db/ensureSchema";
-import {
-  banners,
-  faqs,
-  freeVideoCards,
-  gallery,
-  notices,
-  packages,
-  proofSlides,
-  sections,
-  testimonials,
-} from "@/db/schema";
+import { Suspense } from "react";
 import { buildWhatsAppLink, taka } from "@/lib/format";
 import { computePackagePricing } from "@/lib/pricing";
-import { ensureProofSlideSeed } from "@/lib/proofSeed";
 import { getSettings } from "@/lib/settings";
+import {
+  getPublicBanners,
+  getPublicFaqs,
+  getPublicFreeVideoFlag,
+  getPublicGallery,
+  getPublicNotices,
+  getPublicPackages,
+  getPublicProofSlides,
+  getPublicSections,
+  getPublicTestimonials,
+} from "@/lib/publicContent";
 
 import Header from "@/components/Header";
 import NoticeBoard from "@/components/NoticeBoard";
@@ -31,8 +28,18 @@ import GallerySection from "@/components/GallerySection";
 import FAQSection from "@/components/FAQSection";
 import Footer from "@/components/Footer";
 import VisitPing from "@/components/VisitPing";
+import SectionFallback from "@/components/SectionFallback";
 
-export const dynamic = "force-dynamic";
+/**
+ * Public homepage.
+ *
+ * Content is read through the cached public-content layer (ISR, 5 min, tagged)
+ * so it is not re-queried on every request; admin writes revalidate the tags.
+ * Critical content (header, hero, featured video, offers, packages) renders in
+ * the first paint; the lower sections stream in behind <Suspense> so they never
+ * block it.
+ */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Boom Shorts — Premium YouTube Shorts, Voice Over & SEO Services",
@@ -42,43 +49,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  await ensureSchema();
-  // keeps the starter client-proof screenshots from the original site
-  await ensureProofSlideSeed();
   const settings = await getSettings();
 
-  const [
-    allPackages,
-    allSections,
-    allBanners,
-    allNotices,
-    allTestimonials,
-    allFaqs,
-    allGallery,
-    allProofSlides,
-    allFreeVideos,
-  ] = await Promise.all([
-    db.select().from(packages).orderBy(asc(packages.sortOrder), asc(packages.id)),
-    db.select().from(sections).where(eq(sections.visible, true)).orderBy(asc(sections.sortOrder)),
-    db.select().from(banners).where(eq(banners.visible, true)).orderBy(asc(banners.sortOrder)),
-    db.select().from(notices).where(eq(notices.visible, true)).orderBy(asc(notices.sortOrder)),
-    db
-      .select()
-      .from(testimonials)
-      .where(eq(testimonials.visible, true))
-      .orderBy(asc(testimonials.sortOrder)),
-    db.select().from(faqs).where(eq(faqs.visible, true)).orderBy(asc(faqs.sortOrder)),
-    db.select().from(gallery).where(eq(gallery.visible, true)).orderBy(asc(gallery.sortOrder)),
-    db
-      .select()
-      .from(proofSlides)
-      .where(eq(proofSlides.visible, true))
-      .orderBy(asc(proofSlides.sortOrder)),
-    db
-      .select({ id: freeVideoCards.id })
-      .from(freeVideoCards)
-      .orderBy(desc(freeVideoCards.sortOrder))
-      .limit(1),
+  // Critical, above-the-fold data — fetched in parallel.
+  const [allPackages, allNotices, allBanners, hasFreeVideos] = await Promise.all([
+    getPublicPackages(),
+    getPublicNotices(),
+    getPublicBanners(),
+    getPublicFreeVideoFlag(),
   ]);
 
   const visible = allPackages.filter((pkg) => pkg.visible && pkg.showOnHome);
@@ -89,9 +67,7 @@ export default async function HomePage() {
     settings.whatsappLink ||
     buildWhatsAppLink(settings.whatsappNumber, "Hi, I want to order a Boom Shorts package.");
 
-  const freeVideoLink =
-    settings.freeVideoLink ||
-    (allFreeVideos.length > 0 ? "/free" : "");
+  const freeVideoLink = settings.freeVideoLink || (hasFreeVideos ? "/free" : "");
 
   const productJsonLd = {
     "@context": "https://schema.org",
@@ -151,9 +127,12 @@ export default async function HomePage() {
 
       <main className="min-h-screen">
         <VisitPing />
+
+        {/* 1. HEADER / LOGO */}
         <Header siteName={settings.siteName} logoUrl={settings.logoUrl} whatsappLink={whatsappLink} />
         <NoticeBoard notices={allNotices} />
 
+        {/* 2. HERO / MAIN BANNER */}
         <Hero
           badgeText={settings.heroBadgeText}
           title={settings.heroTitle}
@@ -171,6 +150,7 @@ export default async function HomePage() {
           }}
         />
 
+        {/* 3. FEATURED YOUTUBE VIDEO */}
         <FeaturedVideo
           videoUrl={settings.youtubeVideoUrl}
           thumbnailUrl={settings.youtubeThumbnailUrl}
@@ -184,10 +164,10 @@ export default async function HomePage() {
           }
         />
 
+        {/* 4. OFFERS / NOTICES / PROMOTIONAL CONTENT */}
         <OfferBanners banners={allBanners} />
 
-        <ClientReviewSlider items={allProofSlides} />
-
+        {/* 5. PACKAGES — always before client reviews */}
         <PackagesSection
           id="boom-shorts"
           eyebrow="Boom Shorts"
@@ -206,20 +186,25 @@ export default async function HomePage() {
           videoUrl={settings.serviceVideoUrl}
         />
 
-        <CustomSections sections={allSections} />
+        {/* 6. OTHER USEFUL SECTIONS — streamed, never blocking the paint above */}
+        <Suspense fallback={null}>
+          <CustomSectionsBlock />
+        </Suspense>
 
-        <div id="reviews">
-          <Testimonials items={allTestimonials} />
-          <div className="mx-auto -mt-4 mb-4 max-w-6xl px-4 text-center">
-            <a href="/reviews" className="btn-outline px-5 py-2.5 text-xs">
-              Read all customer reviews →
-            </a>
-          </div>
-        </div>
+        <Suspense fallback={<SectionFallback title="Portfolio Gallery" />}>
+          <GalleryBlock />
+        </Suspense>
 
-        <GallerySection items={allGallery} />
-        <FAQSection items={allFaqs} />
+        <Suspense fallback={<SectionFallback title="Frequently Asked Questions" compact />}>
+          <FaqBlock />
+        </Suspense>
 
+        {/* 7. CLIENT REVIEWS — lower section, after packages */}
+        <Suspense fallback={<SectionFallback title="Real Results, Real Clients" />}>
+          <ReviewsBlock />
+        </Suspense>
+
+        {/* 8. FOOTER */}
         <Footer
           siteName={settings.siteName}
           whatsappLink={whatsappLink}
@@ -229,5 +214,41 @@ export default async function HomePage() {
         />
       </main>
     </>
+  );
+}
+
+async function CustomSectionsBlock() {
+  const allSections = await getPublicSections();
+  return <CustomSections sections={allSections} />;
+}
+
+async function GalleryBlock() {
+  const allGallery = await getPublicGallery();
+  return <GallerySection items={allGallery} />;
+}
+
+async function FaqBlock() {
+  const allFaqs = await getPublicFaqs();
+  return <FAQSection items={allFaqs} />;
+}
+
+async function ReviewsBlock() {
+  const [allProofSlides, allTestimonials] = await Promise.all([
+    getPublicProofSlides(),
+    getPublicTestimonials(),
+  ]);
+
+  return (
+    <div id="reviews">
+      <ClientReviewSlider items={allProofSlides} />
+      <Testimonials items={allTestimonials} />
+      {allTestimonials.length > 0 ? (
+        <div className="mx-auto -mt-2 mb-6 max-w-6xl px-4 text-center">
+          <a href="/reviews" className="btn-outline px-5 py-2.5 text-xs">
+            Read all customer reviews →
+          </a>
+        </div>
+      ) : null}
+    </div>
   );
 }

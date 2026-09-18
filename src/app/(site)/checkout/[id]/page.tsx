@@ -39,11 +39,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
         title="Secure checkout"
         subtitle="Pay with bKash or Nagad, then submit your payment details below."
         backHref="/#boom-shorts"
-        backLabel="Packages"
+        backLabel="Back"
+        showLogo
+        logoUrl={settings.logoUrl}
+        siteName={settings.siteName}
       />
       <div className="px-4 py-5">
         {!pkg.available ? (
-          <p className="mx-auto mb-4 max-w-4xl rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+          <p className="mx-auto mb-4 max-w-4xl rounded-xl bg-bad-soft px-4 py-3 text-xs font-semibold text-bad">
             This package is currently unavailable. Please choose another package or contact us on
             WhatsApp.
           </p>

@@ -51,15 +51,15 @@ export default function CustomSections({ sections }: { sections: Section[] }) {
                     ) : null}
                     <div className="flex flex-1 flex-col p-4">
                       {item.title ? (
-                        <h3 className="text-sm font-bold text-navy sm:text-base">{item.title}</h3>
+                        <h3 className="text-sm font-bold text-warm sm:text-base">{item.title}</h3>
                       ) : null}
                       {item.description ? (
-                        <p className="mt-1.5 flex-1 text-[12px] leading-relaxed text-slate-500 sm:text-[13px]">
+                        <p className="mt-1.5 flex-1 text-[12px] leading-relaxed text-muted sm:text-[13px]">
                           {item.description}
                         </p>
                       ) : null}
                       {item.price ? (
-                        <p className="mt-2 text-lg font-extrabold text-navy">{item.price}</p>
+                        <p className="mt-2 text-lg font-extrabold text-warm">{item.price}</p>
                       ) : null}
                       {item.link ? (
                         <a

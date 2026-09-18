@@ -26,10 +26,10 @@ export default function FAQSection({ items }: { items: Faq[] }) {
                 aria-expanded={isOpen}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
               >
-                <span className="text-[13px] font-bold text-navy sm:text-sm">{faq.question}</span>
+                <span className="text-[13px] font-bold text-warm sm:text-sm">{faq.question}</span>
                 <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition ${
-                    isOpen ? "rotate-45 bg-blue-600 text-white" : ""
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/5 text-muted transition ${
+                    isOpen ? "rotate-45 bg-gold text-ink" : ""
                   }`}
                   aria-hidden
                 >
@@ -41,7 +41,7 @@ export default function FAQSection({ items }: { items: Faq[] }) {
                   isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                 }`}
               >
-                <div className="overflow-hidden px-4 pb-4 text-[13px] leading-relaxed text-slate-600">
+                <div className="overflow-hidden px-4 pb-4 text-[13px] leading-relaxed text-warm-dim">
                   {faq.answer}
                 </div>
               </div>

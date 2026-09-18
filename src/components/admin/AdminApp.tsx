@@ -74,17 +74,17 @@ export default function AdminApp() {
 
   return (
     <div className="min-h-screen bg-surface pb-24 lg:pb-6">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-line bg-coal/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold text-ink">
               ⚙️
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-extrabold text-navy">
+              <p className="truncate text-[13px] font-extrabold text-warm">
                 {meta?.label ?? "Dashboard"}
               </p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Admin app</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-2">Admin app</p>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function AdminApp() {
               key={tab}
               type="button"
               onClick={() => setScreen(index)}
-              className={`admin-tab ${screen === index ? "admin-tab-active" : "border border-slate-200 bg-white"}`}
+              className={`admin-tab ${screen === index ? "admin-tab-active" : "border border-line bg-coal"}`}
             >
               {tab}
             </button>
@@ -121,7 +121,7 @@ export default function AdminApp() {
         {renderPanel()}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-coal/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg">
           {MOBILE_NAV.map((item) => {
             const active = section === item.id;

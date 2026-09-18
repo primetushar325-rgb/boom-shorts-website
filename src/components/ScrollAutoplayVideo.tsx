@@ -59,7 +59,7 @@ export default function ScrollAutoplayVideo({
   return (
     <div
       ref={wrapperRef}
-      className="mx-auto mb-6 aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-sm"
+      className="mx-auto mb-6 aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border border-line bg-black shadow-sm"
     >
       <iframe
         ref={iframeRef}

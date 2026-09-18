@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { banners } from "@/db/schema";
 import { isAdminAuthed } from "@/lib/session";
+import { revalidatePublicContent } from "@/lib/revalidatePublic";
+import { PUBLIC_TAGS } from "@/lib/publicContent";
 
 export const dynamic = "force-dynamic";
 
@@ -36,5 +38,6 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
+  revalidatePublicContent(PUBLIC_TAGS.banners);
   return NextResponse.json({ banner: created }, { status: 201 });
 }

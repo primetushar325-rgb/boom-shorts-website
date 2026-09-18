@@ -19,18 +19,18 @@ export type OrderRow = {
 };
 
 export const STATUS_STYLES: Record<string, string> = {
-  pending: "badge bg-amber-100 text-amber-800",
-  payment_verified: "badge bg-blue-100 text-blue-700",
+  pending: "badge bg-gold-soft text-gold-light",
+  payment_verified: "badge bg-gold-soft text-gold-light",
   processing: "badge bg-indigo-100 text-indigo-700",
-  completed: "badge bg-emerald-100 text-emerald-700",
-  cancelled: "badge bg-slate-200 text-slate-600",
-  rejected: "badge bg-red-100 text-red-700",
+  completed: "badge bg-emerald-100 text-ok",
+  cancelled: "badge bg-white/10 text-warm-dim",
+  rejected: "badge bg-red-100 text-bad",
 };
 
 const PAYMENT_STYLES: Record<string, string> = {
-  pending: "badge bg-amber-100 text-amber-800",
-  verified: "badge bg-emerald-100 text-emerald-700",
-  rejected: "badge bg-red-100 text-red-700",
+  pending: "badge bg-gold-soft text-gold-light",
+  verified: "badge bg-emerald-100 text-ok",
+  rejected: "badge bg-red-100 text-bad",
 };
 
 export function OrderCard({ order, whatsappNumber }: { order: OrderRow; whatsappNumber: string }) {
@@ -38,17 +38,17 @@ export function OrderCard({ order, whatsappNumber }: { order: OrderRow; whatsapp
     <article className="card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[13px] font-extrabold text-navy">
+          <p className="text-[13px] font-extrabold text-warm">
             {order.orderCode || `#${order.id}`}
           </p>
-          <p className="mt-0.5 truncate text-[13px] text-slate-600">{order.packageName}</p>
+          <p className="mt-0.5 truncate text-[13px] text-warm-dim">{order.packageName}</p>
         </div>
         <span className={STATUS_STYLES[order.status] ?? "badge-neutral"}>
           {orderStatusLabel(order.status)}
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-[12px]">
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white/5 p-3 text-[12px]">
         <Detail label="Quantity" value={String(order.quantity)} />
         <Detail label="Amount" value={taka(order.price)} strong />
         <Detail label="Payment" value={order.paymentMethod} />
@@ -97,8 +97,8 @@ function Detail({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`mt-0.5 ${strong ? "font-extrabold text-navy" : "font-semibold text-slate-700"}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">{label}</p>
+      <p className={`mt-0.5 ${strong ? "font-extrabold text-warm" : "font-semibold text-warm-dim"}`}>
         {value}
       </p>
     </div>
@@ -169,7 +169,7 @@ export default function OrdersView({ whatsappNumber }: { whatsappNumber: string 
   }
 
   if (loading) {
-    return <div className="card p-6 text-center text-sm text-slate-400">Loading your orders…</div>;
+    return <div className="card p-6 text-center text-sm text-muted-2">Loading your orders…</div>;
   }
 
   return (
@@ -195,16 +195,16 @@ export default function OrdersView({ whatsappNumber }: { whatsappNumber: string 
         customer ? (
           <>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">
-                Signed in as <span className="font-bold text-slate-700">{customer.phone}</span>
+              <p className="text-xs text-muted">
+                Signed in as <span className="font-bold text-warm-dim">{customer.phone}</span>
               </p>
-              <button type="button" onClick={loadOrders} className="text-xs font-bold text-blue-600">
+              <button type="button" onClick={loadOrders} className="text-xs font-bold text-gold">
                 Refresh
               </button>
             </div>
             {orders.length === 0 ? (
               <div className="card p-6 text-center">
-                <p className="text-sm text-slate-500">You have no orders yet.</p>
+                <p className="text-sm text-muted">You have no orders yet.</p>
                 <Link href="/#boom-shorts" className="btn-primary mt-3 px-4 py-2 text-xs">
                   Browse packages
                 </Link>
@@ -219,8 +219,8 @@ export default function OrdersView({ whatsappNumber }: { whatsappNumber: string 
           </>
         ) : (
           <div className="card p-5 text-center">
-            <p className="text-sm font-semibold text-navy">Sign in to see your order history</p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="text-sm font-semibold text-warm">Sign in to see your order history</p>
+            <p className="mt-1 text-xs text-muted">
               Use the WhatsApp number and PIN you set while ordering.
             </p>
             <Link href="/profile" className="btn-primary mt-3 px-4 py-2.5 text-xs">
@@ -259,7 +259,7 @@ export default function OrdersView({ whatsappNumber }: { whatsappNumber: string 
               />
             </div>
             {trackError ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+              <p className="rounded-xl bg-bad-soft px-3 py-2 text-xs font-semibold text-bad">
                 {trackError}
               </p>
             ) : null}

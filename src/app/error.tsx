@@ -18,11 +18,11 @@ export default function GlobalError({
   return (
     <main className="grid min-h-screen place-items-center bg-surface px-4">
       <div className="card w-full max-w-sm p-6 text-center">
-        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-50 text-2xl">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-bad-soft text-2xl">
           ⚠️
         </div>
-        <h1 className="mt-3 text-lg font-extrabold text-navy">Something went wrong</h1>
-        <p className="mt-1.5 text-sm text-slate-500">
+        <h1 className="mt-3 text-lg font-extrabold text-warm">Something went wrong</h1>
+        <p className="mt-1.5 text-sm text-muted">
           Please try again. If the problem continues, message us on WhatsApp.
         </p>
         <div className="mt-5 flex flex-col gap-2">

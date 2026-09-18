@@ -39,6 +39,7 @@ type OrderResult = {
   transactionId: string;
   status: string;
   paymentStatus: string;
+  screenshotStored?: boolean;
   createdAt: string;
 };
 
@@ -188,6 +189,13 @@ export default function CheckoutForm({
             <Row label="Status" value={orderStatusLabel(result.status)} />
             <Row label="Date" value={formatDateTime(result.createdAt)} />
           </div>
+
+          {result.screenshotStored === false && (
+            <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+              Your screenshot could not be uploaded. Please send it to us on WhatsApp with your
+              Order ID.
+            </p>
+          )}
 
           <p className="mt-3 text-[11px] text-slate-400">
             Save your Order ID — you need it to track this order.

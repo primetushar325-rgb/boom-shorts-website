@@ -99,10 +99,12 @@ export async function POST(req: NextRequest) {
   }
 
   let screenshotRef: string | null = null;
+  let screenshotStored = false;
   try {
     if (screenshot) {
       const uploaded = await uploadPaymentScreenshot(screenshot, "orders/");
-      screenshotRef = uploaded.ref;
+      screenshotRef = uploaded.ref || null;
+      screenshotStored = uploaded.stored !== false && Boolean(screenshotRef);
     }
 
     const result = await createOrder({
@@ -136,6 +138,7 @@ export async function POST(req: NextRequest) {
           transactionId: order.transactionId,
           status: order.status,
           paymentStatus: order.paymentStatus,
+          screenshotStored,
           createdAt: new Date(order.createdAt).toISOString(),
         },
       },

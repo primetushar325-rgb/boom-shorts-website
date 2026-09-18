@@ -37,7 +37,7 @@ if (
 
 const LOCAL_DIR = path.join(os.tmpdir(), "boom-shorts-uploads");
 
-export type UploadedFile = { ref: string; url: string | null };
+export type UploadedFile = { ref: string; url: string | null; stored?: boolean };
 
 function extensionFor(file: File): string {
   const fromName = path.extname(file.name || "").toLowerCase();
@@ -200,13 +200,19 @@ export async function uploadPaymentScreenshot(file: File, prefix: string): Promi
 
   if (isSupabaseConfigured) {
     const ref = await uploadToSupabase(PAYMENT_BUCKET, objectPath, file, false);
-    return { ref, url: null };
+    return { ref, url: null, stored: true };
   }
 
-  // Without Supabase Storage configured we still accept the order, but the
-  // screenshot is stored locally (dev only) instead of in a private bucket.
+  // No private storage configured. On production we must not pretend the
+  // upload worked: keep the order but tell the customer to send the screenshot
+  // on WhatsApp instead of silently writing to an unreachable /tmp folder.
+  if (process.env.NODE_ENV === "production") {
+    return { ref: "", url: null, stored: false };
+  }
+
+  // Local development: keep the file on disk so the flow stays testable.
   const ref = await saveLocally(`private_${objectPath}`, file);
-  return { ref, url: null };
+  return { ref, url: null, stored: true };
 }
 
 export async function resolvePrivateUrl(ref: string): Promise<string | null> {

@@ -1,54 +1,64 @@
-import Image from "next/image";
-
-type Banner = {
+export type BannerItem = {
   id: number;
   title: string;
+  description: string;
   imageUrl: string;
   link: string;
+  buttonText: string;
+  buttonUrl: string;
   type: string;
 };
 
-export default function OfferBanners({ banners }: { banners: Banner[] }) {
+export default function OfferBanners({ banners }: { banners: BannerItem[] }) {
   if (!banners.length) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-5 py-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {banners.map((b) => {
-          const content = (
-            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-amber-500/20 to-yellow-600/20">
-              {b.imageUrl ? (
-                <Image
-                  src={b.imageUrl}
-                  alt={b.title || "Banner"}
-                  width={800}
-                  height={280}
-                  className="h-40 w-full object-cover opacity-90 transition group-hover:scale-105 group-hover:opacity-100 sm:h-48"
+    <section className="mx-auto max-w-6xl px-4 py-6">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        {banners.map((banner) => {
+          const target = banner.buttonUrl || banner.link;
+          const inner = (
+            <div className="card card-hover relative flex h-full flex-col overflow-hidden">
+              {banner.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={banner.imageUrl}
+                  alt={banner.title || "Offer banner"}
+                  className="h-36 w-full object-cover sm:h-44"
+                  loading="lazy"
                 />
-              ) : (
-                <div className="flex h-40 w-full items-center justify-center bg-gradient-to-br from-amber-500 to-yellow-700 sm:h-48">
-                  <span className="px-4 text-center text-xl font-bold text-white">{b.title}</span>
-                </div>
-              )}
-              {b.imageUrl && b.title ? (
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <p className="font-semibold text-white">{b.title}</p>
-                </div>
               ) : null}
-              {b.type === "offer" ? (
-                <span className="absolute right-3 top-3 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white shadow">
-                  OFFER
-                </span>
-              ) : null}
+              <div className={`flex flex-1 flex-col p-4 ${banner.imageUrl ? "" : "bg-gradient-to-br from-blue-600 to-navy"}`}>
+                {banner.type === "offer" ? (
+                  <span className="badge mb-2 w-fit bg-red-600 text-white">OFFER</span>
+                ) : null}
+                {banner.title ? (
+                  <p className={`text-sm font-extrabold ${banner.imageUrl ? "text-navy" : "text-white"}`}>
+                    {banner.title}
+                  </p>
+                ) : null}
+                {banner.description ? (
+                  <p className={`mt-1 text-xs leading-relaxed ${banner.imageUrl ? "text-slate-500" : "text-blue-100"}`}>
+                    {banner.description}
+                  </p>
+                ) : null}
+                {target && banner.buttonText ? (
+                  <span className={`btn mt-3 w-fit px-4 py-2 text-xs ${banner.imageUrl ? "btn-primary" : "bg-white text-navy hover:bg-blue-50"}`}>
+                    {banner.buttonText}
+                  </span>
+                ) : null}
+              </div>
             </div>
           );
 
-          return b.link ? (
-            <a key={b.id} href={b.link} target="_blank" rel="noreferrer">
-              {content}
+          return target ? (
+            <a key={banner.id} href={target} target="_blank" rel="noopener noreferrer" className="block h-full">
+              {inner}
             </a>
           ) : (
-            <div key={b.id}>{content}</div>
+            <div key={banner.id} className="h-full">
+              {inner}
+            </div>
           );
         })}
       </div>

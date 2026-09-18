@@ -1,28 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { banners } from "@/db/schema";
 import { asc } from "drizzle-orm";
-import { isAdminAuthed } from "@/lib/requireAdmin";
+import { db } from "@/db";
+import { ensureSchema } from "@/db/ensureSchema";
+import { banners } from "@/db/schema";
+import { isAdminAuthed } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  await ensureSchema();
   const rows = await db.select().from(banners).orderBy(asc(banners.sortOrder), asc(banners.id));
   return NextResponse.json({ banners: rows });
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await isAdminAuthed();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  await ensureSchema();
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+
   const [created] = await db
     .insert(banners)
     .values({
-      title: body.title || "",
-      imageUrl: body.imageUrl || "",
-      link: body.link || "",
+      title: String(body.title || "").slice(0, 120),
+      description: String(body.description || "").slice(0, 300),
+      imageUrl: String(body.imageUrl || "").slice(0, 500),
+      link: String(body.link || "").slice(0, 500),
+      buttonText: String(body.buttonText || "").slice(0, 40),
+      buttonUrl: String(body.buttonUrl || "").slice(0, 500),
       type: body.type === "offer" ? "offer" : "banner",
-      visible: body.visible ?? true,
-      sortOrder: body.sortOrder ?? 0,
+      visible: body.visible !== false,
+      sortOrder: Number(body.sortOrder ?? 0) || 0,
     })
     .returning();
 

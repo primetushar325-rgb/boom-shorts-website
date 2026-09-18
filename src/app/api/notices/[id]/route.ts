@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { ensureSchema } from "@/db/ensureSchema";
 import { notices } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAdminAuthed } from "@/lib/requireAdmin";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await ensureSchema();
+
   const admin = await isAdminAuthed();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
@@ -17,6 +20,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await ensureSchema();
+
   const admin = await isAdminAuthed();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;

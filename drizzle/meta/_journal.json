@@ -15,6 +15,13 @@
       "when": 1785054422752,
       "tag": "0001_goofy_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789730667066,
+      "tag": "0002_production_ready",
+      "breakpoints": true
     }
   ]
 }

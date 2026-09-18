@@ -3,83 +3,105 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function Header({ siteName, logoUrl }: { siteName: string; logoUrl: string }) {
+const links = [
+  { href: "/#boom-shorts", label: "Packages" },
+  { href: "/#services", label: "Services" },
+  { href: "/#reviews", label: "Reviews" },
+  { href: "/#gallery", label: "Our Work" },
+  { href: "/#faq", label: "FAQ" },
+];
+
+export default function Header({
+  siteName,
+  logoUrl,
+  whatsappLink,
+}: {
+  siteName: string;
+  logoUrl: string;
+  whatsappLink?: string;
+}) {
   const [open, setOpen] = useState(false);
 
-  const links = [
-    { href: "#home", label: "Home" },
-    { href: "#boom-shorts", label: "Boom Shorts" },
-    { href: "#services", label: "Services" },
-    { href: "#gallery", label: "Our Work" },
-    { href: "#faq", label: "FAQ" },
-  ];
-
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-        <Link href="#home" className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-white">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
               alt={siteName}
-              className="animate-gold-glow h-10 w-10 rounded-full border border-amber-300/50 object-cover"
+              className="h-9 w-9 shrink-0 rounded-xl object-cover ring-1 ring-slate-200"
             />
           ) : (
-            <span className="animate-gold-glow grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 text-base">
-              🎬
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-base text-white">
+              ▶
             </span>
           )}
-          {siteName}
+          <span className="truncate text-base font-extrabold tracking-tight text-navy sm:text-lg">
+            {siteName}
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {links.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm font-medium text-slate-300 transition hover:text-white">
-              {l.label}
+        <nav className="hidden items-center gap-7 lg:flex">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-slate-600 transition hover:text-blue-600"
+            >
+              {link.label}
             </a>
           ))}
         </nav>
 
-        <a
-          href="#boom-shorts"
-          className="hidden rounded-full bg-gradient-to-r from-amber-400 to-yellow-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-400/30 transition hover:scale-105 hover:shadow-amber-400/50 md:inline-block"
-        >
-          Order Package
-        </a>
-
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 text-white md:hidden"
-          aria-label="Toggle menu"
-        >
-          {open ? "✕" : "☰"}
-        </button>
+        <div className="flex items-center gap-2">
+          {whatsappLink ? (
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 sm:inline-flex"
+            >
+              WhatsApp
+            </a>
+          ) : null}
+          <a href="#boom-shorts" className="btn-primary hidden sm:inline-flex">
+            Order Now
+          </a>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-700 lg:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              {open ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {open && (
-        <div className="border-t border-white/10 bg-slate-950/95 px-5 py-4 md:hidden">
-          <div className="flex flex-col gap-4">
-            {links.map((l) => (
+      {open ? (
+        <div className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
+          <div className="flex flex-col gap-1">
+            {links.map((link) => (
               <a
-                key={l.href}
-                href={l.href}
+                key={link.href}
+                href={link.href}
                 onClick={() => setOpen(false)}
-                className="text-sm font-medium text-slate-300 hover:text-white"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                {l.label}
+                {link.label}
               </a>
             ))}
-            <a
-              href="#boom-shorts"
-              onClick={() => setOpen(false)}
-              className="rounded-full bg-gradient-to-r from-amber-400 to-yellow-600 px-5 py-2.5 text-center text-sm font-semibold text-white"
-            >
-              Order Package
+            <a href="#boom-shorts" onClick={() => setOpen(false)} className="btn-primary mt-2">
+              Order Now
             </a>
           </div>
         </div>
-      )}
+      ) : null}
     </header>
   );
 }

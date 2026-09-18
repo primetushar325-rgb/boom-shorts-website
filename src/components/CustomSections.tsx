@@ -14,7 +14,7 @@ type Section = {
   title: string;
   subtitle: string;
   videoUrl: string;
-  videoThumbnailUrl: string;
+  videoThumbnailUrl?: string;
   items: unknown;
 };
 
@@ -23,42 +23,50 @@ export default function CustomSections({ sections }: { sections: Section[] }) {
 
   return (
     <>
-      {sections.map((s) => {
-        const items = (Array.isArray(s.items) ? s.items : []) as SectionItem[];
+      {sections.map((section) => {
+        const items = (Array.isArray(section.items) ? section.items : []) as SectionItem[];
         return (
-          <section key={s.id} className="mx-auto max-w-7xl px-5 py-14">
-            <div className="mb-8 text-center">
-              <h2 className="text-2xl font-extrabold text-white sm:text-3xl">{s.title}</h2>
-              {s.subtitle ? <p className="mx-auto mt-3 max-w-xl text-sm text-slate-400">{s.subtitle}</p> : null}
+          <section key={section.id} className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+            <div className="mb-6 text-center">
+              <h2 className="section-title mt-0">{section.title}</h2>
+              {section.subtitle ? <p className="section-sub">{section.subtitle}</p> : null}
             </div>
 
-            {s.videoUrl ? <ScrollAutoplayVideo videoUrl={s.videoUrl} title={s.title} /> : null}
+            {section.videoUrl ? (
+              <ScrollAutoplayVideo videoUrl={section.videoUrl} title={section.title} />
+            ) : null}
 
             {items.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur transition hover:-translate-y-1 hover:border-amber-300/30"
-                  >
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                {items.map((item, index) => (
+                  <div key={index} className="card card-hover flex flex-col overflow-hidden">
                     {item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.imageUrl} alt={item.title || ""} className="h-40 w-full object-cover" />
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title || ""}
+                        className="h-32 w-full object-cover sm:h-40"
+                        loading="lazy"
+                      />
                     ) : null}
-                    <div className="flex flex-1 flex-col p-5">
-                      {item.title ? <h3 className="text-lg font-bold text-white">{item.title}</h3> : null}
+                    <div className="flex flex-1 flex-col p-4">
+                      {item.title ? (
+                        <h3 className="text-sm font-bold text-navy sm:text-base">{item.title}</h3>
+                      ) : null}
                       {item.description ? (
-                        <p className="mt-2 flex-1 text-sm text-slate-400">{item.description}</p>
+                        <p className="mt-1.5 flex-1 text-[12px] leading-relaxed text-slate-500 sm:text-[13px]">
+                          {item.description}
+                        </p>
                       ) : null}
                       {item.price ? (
-                        <p className="mt-3 text-xl font-extrabold text-amber-300">{item.price}</p>
+                        <p className="mt-2 text-lg font-extrabold text-navy">{item.price}</p>
                       ) : null}
                       {item.link ? (
                         <a
                           href={item.link}
                           target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 rounded-full bg-gradient-to-r from-amber-400 to-yellow-600 px-4 py-2.5 text-center text-sm font-bold text-white"
+                          rel="noopener noreferrer"
+                          className="btn-primary mt-3 w-full py-2 text-xs"
                         >
                           {item.buttonText || "Learn More"}
                         </a>

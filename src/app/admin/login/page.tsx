@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
@@ -9,8 +10,8 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError("");
     setLoading(true);
     try {
@@ -23,46 +24,53 @@ export default function AdminLoginPage() {
       if (!res.ok) throw new Error(data.error || "Login failed");
       router.push("/admin");
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Login failed");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-950 px-5 text-white">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/[0.04] p-8 backdrop-blur"
-      >
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-600 text-2xl">
+    <main className="grid min-h-screen place-items-center bg-surface px-4">
+      <form onSubmit={handleSubmit} className="card w-full max-w-sm p-6">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-600 text-xl text-white">
           🔐
         </div>
-        <h1 className="mt-4 text-center text-xl font-extrabold">Admin Login</h1>
-        <p className="mt-1 text-center text-sm text-slate-400">Sign in to manage your website.</p>
+        <h1 className="mt-3 text-center text-lg font-extrabold text-navy">Admin sign in</h1>
+        <p className="mt-1 text-center text-xs text-slate-500">
+          Manage orders, packages, payments and reviews.
+        </p>
 
-        <div className="mt-6">
-          <label className="mb-1 block text-xs font-semibold text-slate-400">Password</label>
+        <div className="mt-5">
+          <label className="label" htmlFor="password">
+            Password
+          </label>
           <input
+            id="password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm outline-none focus:border-amber-300"
+            onChange={(event) => setPassword(event.target.value)}
+            className="input"
             placeholder="Enter admin password"
+            autoComplete="current-password"
             required
           />
         </div>
 
-        {error ? <p className="mt-3 text-sm font-semibold text-red-400">{error}</p> : null}
+        {error ? (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+            {error}
+          </p>
+        ) : null}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-amber-400/30 transition hover:scale-[1.01] disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign In"}
+        <button type="submit" disabled={loading} className="btn-primary mt-5 w-full py-3">
+          {loading ? "Signing in…" : "Sign in"}
         </button>
+
+        <Link href="/" className="btn-ghost mt-2 w-full py-2.5 text-xs">
+          ← Back to website
+        </Link>
       </form>
     </main>
   );

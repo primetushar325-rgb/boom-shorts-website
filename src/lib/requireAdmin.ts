@@ -1,10 +1,14 @@
-import { cookies } from "next/headers";
-import { ADMIN_COOKIE, isValidSession } from "./auth";
-import { getSettings } from "./settings";
+import { isAdminAuthed } from "./session";
 
-export async function isAdminAuthed(): Promise<boolean> {
-  const store = await cookies();
-  const cookie = store.get(ADMIN_COOKIE)?.value;
-  const s = await getSettings();
-  return isValidSession(cookie, s.adminPasswordHash);
+/**
+ * Admin authorization gate for server components and route handlers.
+ * Full verification happens server-side (signed session cookie + current admin
+ * password hash) — hiding a button in the UI is never the protection.
+ */
+export { isAdminAuthed };
+
+export async function requireAdminResponse(): Promise<Response | null> {
+  const authed = await isAdminAuthed();
+  if (authed) return null;
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
 }

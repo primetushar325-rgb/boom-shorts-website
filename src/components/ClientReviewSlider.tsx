@@ -3,38 +3,39 @@ type ProofSlide = { id: number; imageUrl: string; caption: string };
 export default function ClientReviewSlider({ items }: { items: ProofSlide[] }) {
   if (!items.length) return null;
 
-  // Duplicate the list so the CSS marquee loops seamlessly.
   const loop = [...items, ...items];
 
   return (
-    <section className="overflow-hidden py-14">
-      <div className="mb-8 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
-          ⭐ Client Review
-        </span>
-        <h2 className="mt-3 text-2xl font-extrabold text-white sm:text-3xl">Real Results, Real Clients</h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
-          Screenshots straight from our clients&apos; YouTube Studio &amp; WhatsApp — no filters, no edits.
+    <section className="overflow-hidden py-10 sm:py-14">
+      <div className="mb-6 px-4 text-center">
+        <span className="badge bg-amber-100 text-amber-800">★ Client Reviews</span>
+        <h2 className="section-title">Real Results, Real Clients</h2>
+        <p className="section-sub">
+          Screenshots straight from our clients&apos; YouTube Studio &amp; WhatsApp — no filters,
+          no edits.
         </p>
       </div>
 
       <div className="group relative">
-        <div className="animate-marquee flex w-max gap-5 [animation-duration:40s] group-hover:[animation-play-state:paused]">
-          {loop.map((item, idx) => (
-            <div
-              key={`${item.id}-${idx}`}
-              className="w-[220px] shrink-0 overflow-hidden rounded-2xl border border-amber-400/20 bg-white/[0.04] shadow-lg shadow-black/40 sm:w-[260px]"
+        <div className="animate-marquee flex w-max gap-3 px-4 [animation-duration:45s] group-hover:[animation-play-state:paused] sm:gap-4">
+          {loop.map((item, index) => (
+            <figure
+              key={`${item.id}-${index}`}
+              className="w-[150px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:w-[210px]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.imageUrl}
                 alt={item.caption || "Client review proof"}
-                className="h-[380px] w-full object-cover sm:h-[440px]"
+                className="h-[240px] w-full object-cover sm:h-[340px]"
+                loading="lazy"
               />
               {item.caption ? (
-                <p className="p-3 text-center text-xs text-slate-400">{item.caption}</p>
+                <figcaption className="p-2 text-center text-[11px] text-slate-500">
+                  {item.caption}
+                </figcaption>
               ) : null}
-            </div>
+            </figure>
           ))}
         </div>
       </div>

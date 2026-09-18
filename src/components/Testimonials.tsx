@@ -10,32 +10,41 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
   if (!items.length) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-5 py-16">
-      <div className="mb-10 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Testimonials</p>
-        <h2 className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">What Our Clients Say</h2>
+    <section id="testimonials" className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+      <div className="mb-6 text-center">
+        <p className="section-eyebrow">Testimonials</p>
+        <h2 className="section-title">What Our Clients Say</h2>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((t) => (
-          <div
-            key={t.id}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur transition hover:-translate-y-1 hover:border-amber-300/30"
-          >
-            <div className="mb-3 text-amber-400">{"★".repeat(t.rating)}{"☆".repeat(5 - t.rating)}</div>
-            <p className="text-sm leading-relaxed text-slate-300">&ldquo;{t.message}&rdquo;</p>
-            <div className="mt-5 flex items-center gap-3">
-              {t.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={t.avatarUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
-              ) : (
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-500 text-sm font-bold text-white">
-                  {t.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <p className="text-sm font-semibold text-white">{t.name}</p>
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        {items.map((item) => (
+          <figure key={item.id} className="card p-4 sm:p-5">
+            <div className="text-amber-500" aria-label={`${item.rating} out of 5`}>
+              {"★".repeat(Math.max(0, Math.min(5, item.rating)))}
+              <span className="text-slate-200">
+                {"★".repeat(Math.max(0, 5 - Math.min(5, item.rating)))}
+              </span>
             </div>
-          </div>
+            <blockquote className="mt-2.5 text-[13px] leading-relaxed text-slate-600">
+              &ldquo;{item.message}&rdquo;
+            </blockquote>
+            <figcaption className="mt-4 flex items-center gap-2.5">
+              {item.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.avatarUrl}
+                  alt={item.name}
+                  className="h-9 w-9 rounded-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                  {item.name.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span className="text-[13px] font-bold text-navy">{item.name}</span>
+            </figcaption>
+          </figure>
         ))}
       </div>
     </section>

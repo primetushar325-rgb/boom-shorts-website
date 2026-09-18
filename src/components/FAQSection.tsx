@@ -9,30 +9,41 @@ export default function FAQSection({ items }: { items: Faq[] }) {
   if (!items.length) return null;
 
   return (
-    <section id="faq" className="mx-auto max-w-3xl px-5 py-16">
-      <div className="mb-10 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">FAQ</p>
-        <h2 className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">Frequently Asked Questions</h2>
+    <section id="faq" className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+      <div className="mb-6 text-center">
+        <p className="section-eyebrow">FAQ</p>
+        <h2 className="section-title">Frequently Asked Questions</h2>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {items.map((f) => {
-          const isOpen = openId === f.id;
+      <div className="flex flex-col gap-2.5">
+        {items.map((faq) => {
+          const isOpen = openId === faq.id;
           return (
-            <div key={f.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+            <div key={faq.id} className="card overflow-hidden">
               <button
-                onClick={() => setOpenId(isOpen ? null : f.id)}
-                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                type="button"
+                onClick={() => setOpenId(isOpen ? null : faq.id)}
+                aria-expanded={isOpen}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
               >
-                <span className="text-sm font-semibold text-white sm:text-base">{f.question}</span>
-                <span className={`text-amber-300 transition-transform ${isOpen ? "rotate-45" : ""}`}>+</span>
+                <span className="text-[13px] font-bold text-navy sm:text-sm">{faq.question}</span>
+                <span
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 transition ${
+                    isOpen ? "rotate-45 bg-blue-600 text-white" : ""
+                  }`}
+                  aria-hidden
+                >
+                  +
+                </span>
               </button>
               <div
                 className={`grid transition-all duration-300 ease-in-out ${
                   isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                 }`}
               >
-                <div className="overflow-hidden px-5 pb-4 text-sm text-slate-400">{f.answer}</div>
+                <div className="overflow-hidden px-4 pb-4 text-[13px] leading-relaxed text-slate-600">
+                  {faq.answer}
+                </div>
               </div>
             </div>
           );

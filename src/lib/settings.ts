@@ -1,13 +1,16 @@
-import { db } from "@/db";
-import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { ensureSchema } from "@/db/ensureSchema";
+import { settings } from "@/db/schema";
 import { hashPassword } from "./auth";
 
 export type Settings = typeof settings.$inferSelect;
 
-const DEFAULT_ADMIN_PASSWORD = "admin123";
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_DEFAULT_PASSWORD || "admin123";
 
 export async function getSettings(): Promise<Settings> {
+  await ensureSchema();
+
   const rows = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
   if (rows.length > 0) return rows[0];
 

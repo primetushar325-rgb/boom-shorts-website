@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { ensureSchema } from "@/db/ensureSchema";
 import { proofSlides } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import { isAdminAuthed } from "@/lib/requireAdmin";
 
 export async function GET() {
+  await ensureSchema();
+
   const rows = await db.select().from(proofSlides).orderBy(asc(proofSlides.sortOrder), asc(proofSlides.id));
   return NextResponse.json({ proofSlides: rows });
 }
 
 export async function POST(req: NextRequest) {
+  await ensureSchema();
+
   const admin = await isAdminAuthed();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

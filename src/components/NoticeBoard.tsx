@@ -4,11 +4,11 @@ export default function NoticeBoard({ notices }: { notices: Notice[] }) {
   if (!notices.length) return null;
 
   return (
-    <div className="overflow-hidden border-b border-white/10 bg-gradient-to-r from-amber-500/20 via-yellow-600/20 to-amber-500/20 py-2">
-      <div className="animate-marquee flex whitespace-nowrap text-sm font-medium text-amber-100">
-        {[...notices, ...notices].map((n, idx) => (
-          <span key={idx} className="mx-8 inline-flex items-center gap-2">
-            📢 {n.text}
+    <div className="overflow-hidden border-b border-blue-100 bg-blue-50 py-2">
+      <div className="animate-marquee flex w-max whitespace-nowrap text-[13px] font-semibold text-blue-800">
+        {[...notices, ...notices].map((notice, index) => (
+          <span key={`${notice.id}-${index}`} className="mx-6 inline-flex items-center gap-2">
+            <span aria-hidden>📢</span> {notice.text}
           </span>
         ))}
       </div>

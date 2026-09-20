@@ -8,6 +8,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:e2e": "node scripts/e2e.mjs",
+    "test:checkout": "node scripts/checkout-regression.mjs",
+    "db:fault-proxy": "node scripts/db-fault-proxy.mjs",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate"
   },

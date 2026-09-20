@@ -46,6 +46,35 @@ coupons (valid/expired/min-order), order creation, duplicate-submit protection,
 customer isolation, review moderation, the admin order/payment flow, screenshot
 privacy and homepage rendering.
 
+Checkout resilience suite (read-only — creates no rows, so it is safe against any
+environment, including production):
+
+```bash
+npm run build && npm start          # terminal 1
+npm run test:checkout               # terminal 2
+```
+
+It guards the "Order Now → /checkout/[id] → *Something went wrong*" regression by
+checking **both** navigation paths: a plain HTML GET *and* the RSC "flight" request
+the router actually sends for a client-side navigation. The flight path is the one
+that mattered — a Server Component that throws is serialized into that stream as
+`N:E{"digest":"…"}`, which is what raised the root error boundary on a phone while
+a plain GET still looked like a 200.
+
+Add the transient-failure scenarios by putting a fault proxy in front of the
+database (`/stale` kills the pooled sockets the way a frozen serverless function
+finds them, `/fail` takes the database away entirely, `/heal` restores it):
+
+```bash
+npm run db:fault-proxy              # terminal 2 — 6432 -> 5432, control on 6433
+DATABASE_URL=postgresql://user:pass@127.0.0.1:6432/postgres npm start   # terminal 1
+DB_FAULT_CONTROL_URL=http://127.0.0.1:6433 npm run test:checkout        # terminal 3
+```
+
+That covers the retry absorbing a dead socket, the "Unable to load this package"
+fallback with working **Try again** / **Back to packages**, and recovery back to
+the real checkout form.
+
 ## Environment variables
 
 | Name | Required | Purpose |

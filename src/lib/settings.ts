@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { settings } from "@/db/schema";
+import { withDbRetry } from "./dbRetry";
 import { hashPassword } from "./auth";
 
 export type Settings = typeof settings.$inferSelect;
@@ -20,7 +21,19 @@ export const getSettings = cache(getSettingsUncached);
 async function getSettingsUncached(): Promise<Settings> {
   await ensureSchema();
 
-  const rows = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
+  // The retry lives HERE, below `React.cache`. `cache()` memoizes the promise a
+  // request produced — *including a rejected one* — so retrying by calling
+  // `getSettings()` again within the same request would only replay the same
+  // failure. Retrying the query itself lets the Pool discard the dead socket
+  // and hand out a fresh connection.
+  //
+  // This read backs `getPublicSettings()`, which the `(site)` layout awaits for
+  // every page including /checkout/[id]; an unguarded throw here took the whole
+  // shell down with it.
+  const rows = await withDbRetry(
+    () => db.select().from(settings).where(eq(settings.id, 1)).limit(1),
+    { label: "settings read" },
+  );
   if (rows.length > 0) return rows[0];
 
   const [created] = await db

@@ -83,7 +83,7 @@ export default function Hero({
           ) : null}
         </div>
 
-        {offer.enabled && offer.endsAt ? (
+        {offer.enabled && offer.text ? (
           <div
             className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3 rounded-2xl p-4"
             style={{
@@ -94,7 +94,7 @@ export default function Hero({
             }}
           >
             <p className="text-sm font-bold text-gold-light">🔥 {offer.text}</p>
-            <CountdownTimer endsAt={offer.endsAt} />
+            {offer.endsAt ? <CountdownTimer endsAt={offer.endsAt} /> : null}
           </div>
         ) : null}
 

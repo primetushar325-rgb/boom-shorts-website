@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { buildWhatsAppLink, taka } from "@/lib/format";
+import {
+  buildWhatsAppLink,
+  cleanLabel,
+  offerIsActive,
+  taka,
+  textDateHasPassed,
+} from "@/lib/format";
 import { computePackagePricing } from "@/lib/pricing";
 import {
   getPublicBanners,
@@ -63,6 +69,15 @@ export default async function HomePage() {
   const boomPackages = visible.filter((pkg) => pkg.category === "boom");
   const servicePackages = visible.filter((pkg) => pkg.category === "service");
 
+  // Date-aware notices: a notice whose text carries an explicit date that has
+  // fully passed (e.g. an old "50% Discount Coupon … Date : 5/8/2026") is an
+  // expired promotion and is hidden automatically. Undated notices always show.
+  const currentNotices = allNotices.filter((notice) => !textDateHasPassed(notice.text));
+
+  // Same rule for the hero offer box: an offer whose end date has passed must
+  // not keep advertising a countdown to a moment in the past.
+  const offerActive = offerIsActive(settings.offerEnabled, settings.offerEndsAt);
+
   const whatsappLink =
     settings.whatsappLink ||
     buildWhatsAppLink(settings.whatsappNumber, "Hi, I want to order a Boom Shorts package.");
@@ -75,13 +90,14 @@ export default async function HomePage() {
     name: "Boom Shorts packages",
     itemListElement: boomPackages.slice(0, 10).map((pkg, index) => {
       const pricing = computePackagePricing(pkg);
+      const displayName = cleanLabel(pkg.name);
       return {
         "@type": "ListItem",
         position: index + 1,
         item: {
           "@type": "Product",
-          name: pkg.name,
-          description: pkg.description || pkg.name,
+          name: displayName,
+          description: cleanLabel(pkg.description) || displayName,
           category: pkg.category === "boom" ? "Video Editing" : "Digital Service",
           image: settings.logoUrl || undefined,
           offers: {
@@ -130,7 +146,7 @@ export default async function HomePage() {
 
         {/* 1. HEADER / LOGO */}
         <Header siteName={settings.siteName} logoUrl={settings.logoUrl} whatsappLink={whatsappLink} />
-        <NoticeBoard notices={allNotices} />
+        <NoticeBoard notices={currentNotices} />
 
         {/* 2. HERO / MAIN BANNER */}
         <Hero
@@ -144,9 +160,12 @@ export default async function HomePage() {
             { label: "SEO Optimized", value: settings.statSeoOptimized },
           ]}
           offer={{
-            enabled: settings.offerEnabled,
+            enabled: offerActive,
             text: settings.offerText,
-            endsAt: settings.offerEndsAt ? new Date(settings.offerEndsAt).toISOString() : null,
+            endsAt:
+              offerActive && settings.offerEndsAt
+                ? new Date(settings.offerEndsAt).toISOString()
+                : null,
           }}
         />
 

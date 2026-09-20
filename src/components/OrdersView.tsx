@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import {
   buildWhatsAppLink,
+  cleanLabel,
   formatDateTime,
   orderStatusLabel,
   orderWhatsAppMessage,
+  paymentStatusLabel,
   taka,
 } from "@/lib/format";
 
@@ -60,11 +62,16 @@ function statusClass(value: string): string {
 }
 
 export function OrderCard({ order, whatsappNumber }: { order: OrderRow; whatsappNumber: string }) {
+  // Order snapshots keep the raw database text; the display copy is cleaned
+  // (missing-space typos like "(15 Days)30 Pis") without touching stored data.
+  const packageName = cleanLabel(order.packageName);
+  const packageQuantity = cleanLabel(order.packageQuantity);
+
   // Full click-to-chat message: everything the shop needs to verify the payment.
   const message = orderWhatsAppMessage({
     orderCode: order.orderCode,
-    packageName: order.packageName,
-    packageQuantity: order.packageQuantity,
+    packageName,
+    packageQuantity,
     quantity: order.quantity,
     originalPrice: order.originalPrice,
     discount: order.discountAmount,
@@ -83,7 +90,7 @@ export function OrderCard({ order, whatsappNumber }: { order: OrderRow; whatsapp
           <p className="truncate text-[13px] font-extrabold text-warm">
             {order.orderCode || `#${order.id}`}
           </p>
-          <p className="mt-0.5 truncate text-[13px] text-warm-dim">{order.packageName}</p>
+          <p className="mt-0.5 truncate text-[13px] text-warm-dim">{packageName}</p>
         </div>
         <span className={statusClass(order.status)}>{orderStatusLabel(order.status)}</span>
       </div>
@@ -96,7 +103,7 @@ export function OrderCard({ order, whatsappNumber }: { order: OrderRow; whatsapp
           label="Payment status"
           value={
             <span className={PAYMENT_STYLES[order.paymentStatus] ?? "badge bg-white/10 text-warm-dim"}>
-              {order.paymentStatus}
+              {paymentStatusLabel(order.paymentStatus)}
             </span>
           }
         />

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
-import { packages, reviews } from "@/db/schema";
+import { packages, reviews, testimonials } from "@/db/schema";
+import { cleanLabel } from "@/lib/format";
 import ReviewsView, { type PublicReview } from "@/components/ReviewsView";
 import SitePageHeader from "@/components/SitePageHeader";
+import Testimonials from "@/components/Testimonials";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
 export default async function ReviewsPage() {
   await ensureSchema();
 
-  const [rows, packageRows] = await Promise.all([
+  const [rows, packageRows, testimonialRows] = await Promise.all([
     db
       .select({
         id: reviews.id,
@@ -37,6 +39,20 @@ export default async function ReviewsPage() {
       .from(packages)
       .where(and(eq(packages.visible, true)))
       .orderBy(asc(packages.sortOrder))
+      .limit(30),
+    // The same visible testimonials the homepage shows — displayed here too so
+    // this page never says "no reviews" while the homepage shows praise.
+    db
+      .select({
+        id: testimonials.id,
+        name: testimonials.name,
+        avatarUrl: testimonials.avatarUrl,
+        message: testimonials.message,
+        rating: testimonials.rating,
+      })
+      .from(testimonials)
+      .where(eq(testimonials.visible, true))
+      .orderBy(asc(testimonials.sortOrder))
       .limit(30),
   ]);
 
@@ -58,9 +74,11 @@ export default async function ReviewsPage() {
       <div className="mx-auto max-w-2xl px-4 py-5">
         <ReviewsView
           initialReviews={initialReviews}
-          packageNames={packageRows.map((row) => row.name)}
+          packageNames={packageRows.map((row) => cleanLabel(row.name))}
         />
       </div>
+
+      {testimonialRows.length > 0 ? <Testimonials items={testimonialRows} /> : null}
     </main>
   );
 }

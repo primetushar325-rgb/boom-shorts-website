@@ -42,7 +42,7 @@ export default function SitePageHeader({
         <div className="min-w-0 flex-1">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gold transition hover:text-gold-light"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-gold transition hover:text-gold-light"
             style={{
               border: "1px solid rgba(212,175,55,0.38)",
               background: "rgba(212,175,55,0.07)",

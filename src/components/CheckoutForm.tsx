@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   buildWhatsAppLink,
+  cleanLabel,
   formatDateTime,
   orderStatusLabel,
   orderWhatsAppMessage,
@@ -154,8 +155,8 @@ export default function CheckoutForm({
         orderCode: result?.orderCode,
         name: name.trim(),
         phone: phone.trim(),
-        packageName: result?.packageName ?? pkg.name,
-        packageQuantity: result?.packageQuantity ?? pkg.quantityLabel,
+        packageName: cleanLabel(result?.packageName ?? pkg.name),
+        packageQuantity: cleanLabel(result?.packageQuantity ?? pkg.quantityLabel),
         quantity: result?.quantity ?? quantity,
         originalPrice: result?.originalPrice ?? subtotal,
         discount: result?.discountAmount ?? packageDiscount,
@@ -342,7 +343,7 @@ export default function CheckoutForm({
 
           <div className="mt-5 grid gap-2 rounded-2xl bg-white/5 p-4 text-left text-sm">
             <Row label="Order ID" value={result.orderCode} strong />
-            <Row label="Package" value={result.packageName} />
+            <Row label="Package" value={cleanLabel(result.packageName)} />
             <Row label="Quantity" value={String(result.quantity)} />
             <Row label="Amount" value={taka(result.price)} strong />
             <Row label="Payment method" value={result.paymentMethod} />

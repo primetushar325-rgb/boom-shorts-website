@@ -23,6 +23,12 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
 
 export const PAYMENT_STATUSES = ["pending", "verified", "rejected"] as const;
 
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  verified: "Verified",
+  rejected: "Rejected",
+};
+
 export const REVIEW_STATUSES = ["pending", "approved", "rejected"] as const;
 
 export const PAYMENT_METHODS = ["bKash", "Nagad", "Rocket"] as const;

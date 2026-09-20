@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { packages } from "@/db/schema";
 import { computePackagePricing } from "@/lib/pricing";
+import { cleanLabel } from "@/lib/format";
 import { getPublicSettings } from "@/lib/publicContent";
 import CheckoutForm from "@/components/CheckoutForm";
 import SitePageHeader from "@/components/SitePageHeader";
@@ -63,10 +64,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
         <CheckoutForm
           pkg={{
             id: pkg.id,
-            name: pkg.name,
+            name: cleanLabel(pkg.name),
             description: pkg.description,
             icon: pkg.icon,
-            quantityLabel: pkg.quantityLabel,
+            quantityLabel: cleanLabel(pkg.quantityLabel),
             features,
             demoVideoUrl: pkg.demoVideoUrl,
             unitOriginal: pricing.originalPrice,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { computePackagePricing } from "@/lib/pricing";
-import { taka } from "@/lib/format";
+import { cleanLabel, taka } from "@/lib/format";
+import OrderNowButton from "./OrderNowButton";
 
 export type PackageItem = {
   id: number;
@@ -34,6 +35,8 @@ export default function PackageCard({ pkg, index = 0 }: { pkg: PackageItem; inde
   const features = featureList(pkg.features);
   const isBestSeller = pkg.bestSeller || pkg.badge === "bestseller";
   const href = `/checkout/${pkg.id}`;
+  const name = cleanLabel(pkg.name);
+  const quantityLabel = cleanLabel(pkg.quantityLabel);
   const shineDelay = index % 3 === 1 ? "btn-shine-delay-1" : index % 3 === 2 ? "btn-shine-delay-2" : "";
 
   return (
@@ -60,7 +63,7 @@ export default function PackageCard({ pkg, index = 0 }: { pkg: PackageItem; inde
           {pkg.icon}
         </span>
         <h3 className="text-[15px] font-extrabold leading-tight text-warm sm:text-base">
-          {pkg.name}
+          {name}
         </h3>
       </div>
 
@@ -70,12 +73,12 @@ export default function PackageCard({ pkg, index = 0 }: { pkg: PackageItem; inde
         </p>
       ) : null}
 
-      {pkg.quantityLabel ? (
+      {quantityLabel ? (
         <p
           className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-warm-dim"
           style={{ background: "rgba(255,255,255,0.05)" }}
         >
-          ⏱ {pkg.quantityLabel}
+          ⏱ {quantityLabel}
         </p>
       ) : null}
 
@@ -122,9 +125,11 @@ export default function PackageCard({ pkg, index = 0 }: { pkg: PackageItem; inde
 
       <div className="mt-3.5 flex flex-col gap-2">
         {pkg.available ? (
-          <Link href={href} className={`btn-gold btn-shine ${shineDelay} w-full py-2.5 text-[13px]`}>
-            {pkg.buttonText || "Order Now"}
-          </Link>
+          <OrderNowButton
+            href={href}
+            label={pkg.buttonText || "Order Now"}
+            className={`btn-gold btn-shine ${shineDelay} w-full py-2.5 text-[13px]`}
+          />
         ) : (
           <span
             className="btn w-full cursor-not-allowed py-2.5 text-[13px] text-muted-2"

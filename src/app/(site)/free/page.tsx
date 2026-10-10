@@ -6,14 +6,15 @@ import { ensureSchema } from "@/db/ensureSchema";
 import { freeVideoCards } from "@/db/schema";
 import SitePageHeader from "@/components/SitePageHeader";
 import { getSettings } from "@/lib/settings";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Free Videos",
-  description: "Free video resources from Boom Shorts — bonus content for our customers.",
-  alternates: { canonical: "/free" },
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: "Free Video Resources",
+  description: "Explore free video resources and bonus content from Mihad Boom.",
+  path: "/free",
+});
 
 export default async function FreeVideoPage() {
   await ensureSchema();

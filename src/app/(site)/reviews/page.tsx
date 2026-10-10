@@ -7,15 +7,15 @@ import { cleanLabel } from "@/lib/format";
 import ReviewsView, { type PublicReview } from "@/components/ReviewsView";
 import SitePageHeader from "@/components/SitePageHeader";
 import Testimonials from "@/components/Testimonials";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: "Customer Reviews",
-  description:
-    "Read real customer reviews about Boom Shorts packages, delivery speed and support quality.",
-  alternates: { canonical: "/reviews" },
-};
+  description: "Read verified customer reviews of Mihad Boom's YouTube Shorts, video, and support services.",
+  path: "/reviews",
+});
 
 export default async function ReviewsPage() {
   await ensureSchema();

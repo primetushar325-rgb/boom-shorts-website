@@ -1,19 +1,19 @@
 import type { MetadataRoute } from "next";
+import { absoluteUrl } from "@/lib/seo";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-  "https://boom-shorts-website.vercel.app";
-
+/**
+ * Keep customer-facing pages crawlable while excluding private account, payment,
+ * checkout, API, admin, and archived static-site paths from crawler fetches.
+ */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api/", "/orders", "/profile", "/checkout", "/website/"],
+        disallow: ["/admin", "/api", "/checkout", "/orders", "/payment", "/profile", "/website/"],
       },
     ],
-    sitemap: `${siteUrl}/sitemap.xml`,
-    host: siteUrl,
+    sitemap: absoluteUrl("/sitemap.xml"),
   };
 }

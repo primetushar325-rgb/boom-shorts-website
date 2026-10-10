@@ -35,6 +35,17 @@ import FAQSection from "@/components/FAQSection";
 import Footer from "@/components/Footer";
 import VisitPing from "@/components/VisitPing";
 import SectionFallback from "@/components/SectionFallback";
+import {
+  SITE_ALTERNATE_NAME,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  absoluteUrl,
+  publicHttpUrl,
+  publicPageMetadata,
+  serializeJsonLd,
+  siteUrl,
+  socialImage,
+} from "@/lib/seo";
 
 /**
  * Public homepage.
@@ -47,12 +58,12 @@ import SectionFallback from "@/components/SectionFallback";
  */
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "Boom Shorts — Premium YouTube Shorts, Voice Over & SEO Services",
-  description:
-    "Order high-quality Boom Shorts, voice over videos, thumbnails, SEO and complete YouTube channel management. Pay with bKash or Nagad and track your order online.",
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: "Mihad Boom — Official Website",
+  description: SITE_DESCRIPTION,
+  path: "/",
+  absoluteTitle: true,
+});
 
 export default async function HomePage() {
   const settings = await getPublicSettings();
@@ -84,62 +95,100 @@ export default async function HomePage() {
 
   const freeVideoLink = settings.freeVideoLink || (hasFreeVideos ? "/free" : "");
 
-  const productJsonLd = {
+  const organizationId = `${siteUrl}/#organization`;
+  const supportPhone = settings.whatsappNumber.replace(/\D/g, "");
+  const sameAs = [settings.facebookLink, settings.telegramLink]
+    .map((value) => publicHttpUrl(value))
+    .filter((value): value is string => Boolean(value));
+
+  const websiteJsonLd = {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Boom Shorts packages",
-    itemListElement: boomPackages.slice(0, 10).map((pkg, index) => {
-      const pricing = computePackagePricing(pkg);
-      const displayName = cleanLabel(pkg.name);
-      return {
-        "@type": "ListItem",
-        position: index + 1,
-        item: {
-          "@type": "Product",
-          name: displayName,
-          description: cleanLabel(pkg.description) || displayName,
-          category: pkg.category === "boom" ? "Video Editing" : "Digital Service",
-          image: settings.logoUrl || undefined,
-          offers: {
-            "@type": "Offer",
-            price: pricing.finalPrice.toFixed(2),
-            priceCurrency: "BDT",
-            availability: pkg.available
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            url: `/checkout/${pkg.id}`,
-          },
-        },
-      };
-    }),
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAME,
+    url: siteUrl,
+    description: SITE_DESCRIPTION,
+    inLanguage: ["en", "bn"],
+    publisher: { "@id": organizationId },
   };
 
-  const businessJsonLd = {
+  const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: settings.siteName,
-    url: process.env.NEXT_PUBLIC_SITE_URL || undefined,
-    logo: settings.logoUrl || undefined,
-    contactPoint: settings.whatsappNumber
+    "@id": organizationId,
+    name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAME,
+    url: siteUrl,
+    description: SITE_DESCRIPTION,
+    logo: {
+      "@type": "ImageObject",
+      "@id": `${siteUrl}/#logo`,
+      url: absoluteUrl("/logo.png"),
+      width: 512,
+      height: 512,
+    },
+    image: socialImage.url,
+    sameAs: sameAs.length > 0 ? sameAs : undefined,
+    contactPoint: supportPhone
       ? {
           "@type": "ContactPoint",
           contactType: "customer support",
-          telephone: `+${settings.whatsappNumber.replace(/\D/g, "")}`,
+          telephone: `+${supportPhone}`,
           availableLanguage: ["bn", "en"],
         }
       : undefined,
   };
 
+  const productJsonLd = boomPackages.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: "Mihad Boom packages",
+        numberOfItems: Math.min(boomPackages.length, 10),
+        itemListElement: boomPackages.slice(0, 10).map((pkg, index) => {
+          const pricing = computePackagePricing(pkg);
+          const displayName = cleanLabel(pkg.name);
+          return {
+            "@type": "ListItem",
+            position: index + 1,
+            item: {
+              "@type": "Product",
+              name: displayName,
+              description: cleanLabel(pkg.description) || displayName,
+              category: pkg.category === "boom" ? "Video Editing" : "Digital Service",
+              brand: { "@id": organizationId },
+              offers: {
+                "@type": "Offer",
+                price: pricing.finalPrice.toFixed(2),
+                priceCurrency: "BDT",
+                availability: pkg.available
+                  ? "https://schema.org/InStock"
+                  : "https://schema.org/OutOfStock",
+                url: absoluteUrl(`/checkout/${pkg.id}`),
+              },
+            },
+          };
+        }),
+      }
+    : undefined;
+
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(organizationJsonLd) }}
       />
+      {productJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
+        />
+      ) : null}
 
       <main className="min-h-screen">
         <VisitPing />

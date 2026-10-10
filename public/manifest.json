@@ -1,11 +1,11 @@
 {
-  "name": "Boom Shorts",
-  "short_name": "BoomShorts",
-  "description": "Boom Shorts - Watch and share short videos",
+  "name": "Mihad Boom",
+  "short_name": "Mihad Boom",
+  "description": "Premium YouTube Shorts, voice-over videos, thumbnails, and YouTube SEO services from Mihad Boom.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#050505",
+  "theme_color": "#050505",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import SitePageHeader from "@/components/SitePageHeader";
 import { getSettings } from "@/lib/settings";
 import { parseVideoUrl } from "@/lib/youtube";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Demo Video",
-  description: "See a sample of the Boom Shorts video quality before you order.",
-  alternates: { canonical: "/demo" },
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: "Demo Videos",
+  description: "Watch a sample of Mihad Boom's YouTube Shorts and video production work before ordering.",
+  path: "/demo",
+});
 
 export default async function DemoPage() {
   const settings = await getSettings();

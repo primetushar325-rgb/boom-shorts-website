@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "My Orders",
   description: "Track your Boom Shorts orders, payment status and delivery progress.",
-  robots: { index: false, follow: true },
+  robots: { index: false, follow: false },
 };
 
 export default async function OrdersPage() {

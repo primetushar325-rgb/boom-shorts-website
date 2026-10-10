@@ -1,16 +1,15 @@
 import type { MetadataRoute } from "next";
+import { absoluteUrl } from "@/lib/seo";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
-  "https://boom-shorts-website.vercel.app";
-
+/**
+ * Only list public, canonical landing pages. Account, admin, payment, and
+ * checkout routes are intentionally noindex and therefore excluded.
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
-
   return [
-    { url: `${siteUrl}/`, lastModified, changeFrequency: "daily", priority: 1 },
-    { url: `${siteUrl}/reviews`, lastModified, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${siteUrl}/demo`, lastModified, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${siteUrl}/free`, lastModified, changeFrequency: "weekly", priority: 0.6 },
+    { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
+    { url: absoluteUrl("/reviews"), changeFrequency: "weekly", priority: 0.7 },
+    { url: absoluteUrl("/demo"), changeFrequency: "monthly", priority: 0.6 },
+    { url: absoluteUrl("/free"), changeFrequency: "weekly", priority: 0.6 },
   ];
 }

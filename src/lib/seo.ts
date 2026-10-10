@@ -88,12 +88,25 @@ export function publicPageMetadata({
   };
 }
 
-/** Returns a safe absolute HTTP(S) URL for public structured data. */
+/**
+ * Returns a safe absolute HTTP(S) URL for public structured data. Relative
+ * paths stay on this site, while common bare social URLs such as `t.me/name`
+ * are normalized to HTTPS instead of being mistaken for local paths.
+ */
 export function publicHttpUrl(value?: string | null): string | undefined {
-  if (!value) return undefined;
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  const normalizedValue = trimmed.startsWith("//")
+    ? `https:${trimmed}`
+    : /^[a-z][a-z\d+.-]*:/i.test(trimmed)
+      ? trimmed
+      : /^[a-z\d-]+(?:\.[a-z\d-]+)+(?:[/:?#]|$)/i.test(trimmed)
+        ? `https://${trimmed}`
+        : trimmed;
 
   try {
-    const url = new URL(value, `${siteUrl}/`);
+    const url = new URL(normalizedValue, `${siteUrl}/`);
     return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
   } catch {
     return undefined;
